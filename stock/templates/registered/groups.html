@@ -10,7 +10,7 @@
 {% block content %}
     <div class="col-lg-12">
         <h1 class="page-header text-center">{% trans "Available Groups" %}</h1>
-        {% if STATE == MEMBER_STATE or user.is_superuser %}
+        {% if STATE == MEMBER_STATE or STATE == BLUE_STATE or user.is_superuser %}
             {% if groups %}
             <table class="table">
                 <tr>
