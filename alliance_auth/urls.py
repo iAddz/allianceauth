@@ -177,6 +177,7 @@ urlpatterns += i18n_patterns(
     # Portal Urls
     url(_(r'^dashboard/$'), eveonline.views.dashboard_view, name='auth_dashboard'),
     url(_(r'^help/$'), authentication.views.help_view, name='auth_help'),
+    url(_(r'^nav/$'), authentication.views.nav_view, name='auth_nav'),
 
     # Eveonline Urls
     url(_(r'^add_api_key/'), eveonline.views.add_api_key, name='auth_add_api_key'),

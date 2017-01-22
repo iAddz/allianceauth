@@ -4,6 +4,7 @@ from django.contrib.auth import logout
 from django.contrib.auth import authenticate
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.clickjacking import xframe_options_exempt
 from eveonline.managers import EveManager
 from eveonline.models import EveCharacter
 from authentication.models import AuthServicesInfo
@@ -92,7 +93,11 @@ def index_view(request):
 def help_view(request):
     logger.debug("help_view called by user %s" % request.user)
     return render(request, 'registered/help.html')
-
+    
+@xframe_options_exempt
+def nav_view(request):
+    logger.debug("nav_view called by user %s" % request.user)
+    return render(request, 'public/nav.html')
 
 @token_required(new=True)
 def sso_login(request, token):
