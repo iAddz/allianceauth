@@ -27,7 +27,7 @@
                         <b>{% trans "API Index:" %}</b>
                         <div class="progress">
                             <div class="progress-bar" role="progressbar" aria-valuenow="{{ corpstats.registered_members }}" aria-valuemin="0" aria-valuemax="{{ corpstats.total_members }}" style="width: {% widthratio corpstats.registered_members corpstats.total_members 100 %}%;">
-                                {{ corpstats.registered_members }}/{{ corpstats.total_members }}
+                                {{ corpstats.registered_members }}/{{ corpstats.total_members }} ({{ corpstats.total_users }} Users)
                             </div>
                         </div>
                     </div>

@@ -112,8 +112,10 @@ class CorpStats(models.Model):
                 auth = AuthServicesInfo.objects.get(user=char.user)
                 try:
                     self.main = EveCharacter.objects.get(character_id=auth.main_char_id)
+                    self.main_user = self.main.character_name
                 except EveCharacter.DoesNotExist:
                     self.main = None
+                    self.main_user = ''
                 api = EveApiKeyPair.objects.get(api_id=char.api_id)
                 self.registered = True
                 if show_apis:
@@ -122,9 +124,11 @@ class CorpStats(models.Model):
                     self.api = None
             except (EveCharacter.DoesNotExist, AuthServicesInfo.DoesNotExist):
                 self.main = None
+                self.main_user = ''
                 self.api = None
                 self.registered = False
             except EveApiKeyPair.DoesNotExist:
+                self.main_user = ''
                 self.api = None
                 self.registered = False
 
@@ -136,10 +140,17 @@ class CorpStats(models.Model):
 
     def get_member_objects(self, user):
         show_apis = self.show_apis(user)
-        return sorted([CorpStats.MemberObject(id, name, show_apis=show_apis) for id, name in self.members.items()], key=attrgetter('character_name'))
+        return sorted([CorpStats.MemberObject(id, name, show_apis=show_apis) for id, name in self.members.items()], key=attrgetter('main_user'))
 
     def can_update(self, user):
-        return user.is_superuser or user == self.token.user
+        return user.is_superuser or user == self.token.user or user.has_perm('corputils.add_corpstats')
+    
+    def user_count(self, members):
+        mainchars = []
+        for member in members:
+            if hasattr(member.main, 'character_name'):
+                mainchars.append(member.main.character_name)
+        return len(list(set(mainchars)))
 
 
     @python_2_unicode_compatible
@@ -149,6 +160,7 @@ class CorpStats(models.Model):
             self.members = corpstats.get_member_objects(user)
             self.can_update = corpstats.can_update(user)
             self.total_members = len(self.members)
+            self.total_users = corpstats.user_count(self.members)
             self.registered_members = corpstats.entered_apis()
             self.show_apis = corpstats.show_apis(user)
             self.last_updated = corpstats.last_update
