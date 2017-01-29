@@ -117,6 +117,13 @@ class CorpStats(models.Model):
 
     def member_count(self):
         return len(self.members)
+        
+    def user_count(self, members):
+        mainchars = []
+        for member in members:
+            if hasattr(member.main, 'character_name'):
+                mainchars.append(member.main.character_name)
+        return len(set(mainchars))
 
     @python_2_unicode_compatible
     class MemberObject(object):
@@ -156,18 +163,11 @@ class CorpStats(models.Model):
 
     def get_member_objects(self, user):
         show_apis = self.show_apis(user)
-        return sorted([CorpStats.MemberObject(id, name, show_apis=show_apis) for id, name in self.members.items()], key=attrgetter('main_user'))
+        return sorted([CorpStats.MemberObject(id, name, show_apis=show_apis) for id, name in self.members.items()], key=attrgetter('main_user', 'character_name'))
 
 
     def can_update(self, user):
         return user.is_superuser or user == self.token.user or user.has_perm('corputils.add_corpstats')
-    
-    def user_count(self, members):
-        mainchars = []
-        for member in members:
-            if hasattr(member.main, 'character_name'):
-                mainchars.append(member.main.character_name)
-        return len(list(set(mainchars)))
 
     @python_2_unicode_compatible
     class ViewModel(object):
