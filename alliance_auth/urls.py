@@ -134,11 +134,12 @@ urlpatterns = [
         name='auth_srp_fleet_mark_completed'),
     url(r'^srp_fleet_mark_uncompleted/(\w+)', srp.views.srp_fleet_mark_uncompleted,
         name='auth_srp_fleet_mark_uncompleted'),
-    url(r'^srp_request_remove/(\w+)', srp.views.srp_request_remove,
+    url(r'^srp_request_remove/', srp.views.srp_request_remove,
         name="auth_srp_request_remove"),
-    url(r'srp_request_approve/(\w+)', srp.views.srp_request_approve,
+    url(r'srp_request_approve/', srp.views.srp_request_approve,
         name='auth_srp_request_approve'),
-    url(r'srp_request_reject/(\w+)', srp.views.srp_request_reject, name='auth_srp_request_reject'),
+    url(r'srp_request_reject/', srp.views.srp_request_reject, 
+        name='auth_srp_request_reject'),
 
     # Notifications
     url(r'^remove_notifications/(\w+)/$', notifications.views.remove_notification, name='auth_remove_notification'),
