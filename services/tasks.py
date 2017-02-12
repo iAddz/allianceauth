@@ -474,7 +474,7 @@ def update_discord_nickname(self, pk):
     character = EveManager.get_character_by_id(authserviceinfo.main_char_id)
     logger.debug("Updating user %s discord nickname to %s" % (user, (character.corporation_ticker + character.character_name)))
     try:
-        DiscordOAuthManager.update_nickname(authserviceinfo.discord_uid, (character.corporation_ticker + character.character_name))
+        DiscordOAuthManager.update_nickname(authserviceinfo.discord_uid, ("[" + character.corporation_ticker + "]" + character.character_name))
     except:
         logger.exception("Discord nickname sync failed for %s, retrying in 10 mins" % user)
         raise self.retry(countdown=60 * 10)
