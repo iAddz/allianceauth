@@ -240,6 +240,7 @@ def srp_request_view(request, fleet_srp):
                     logger.info("Created SRP Request on behalf of user %s for fleet name %s" % (
                         request.user, srp_fleet_main.fleet_name))
                     messages.success(request, 'Submitted SRP request for your %s.' % srp_ship_name)
+                    return redirect("auth_srp_management_view")
                 else:
                     continue
             messages.error(request,
