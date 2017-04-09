@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -205,20 +206,19 @@ def click_fatlink_view(request, token, hash, fatname):
 
             if character:
                 # get data
-                c = token.get_esi_client()
+                c = token.get_esi_client(Location='v1', Universe='v2')
                 location = c.Location.get_characters_character_id_location(character_id=token.character_id).result()
                 ship = c.Location.get_characters_character_id_ship(character_id=token.character_id).result()
                 location['solar_system_name'] = \
                     c.Universe.get_universe_systems_system_id(system_id=location['solar_system_id']).result()[
-                        'solar_system_name']
+                        'name']
                 if location['structure_id']:
                     location['station_name'] = \
                         c.Universe.get_universe_structures_structure_id(structure_id=location['structure_id']).result()[
                             'name']
                 elif location['station_id']:
                     location['station_name'] = \
-                        c.Universe.get_universe_stations_station_id(station_id=location['station_id']).result()[
-                            'station_name']
+                        c.Universe.get_universe_stations_station_id(station_id=location['station_id']).result()['name']
                 else:
                     location['station_name'] = "No Station"
                 ship['ship_type_name'] = EveManager.get_itemtype(ship['ship_type_id']).name
@@ -233,7 +233,7 @@ def click_fatlink_view(request, token, hash, fatname):
                 try:
                     fat.full_clean()
                     fat.save()
-                    messages.success(request, 'Fleet participation registered.')
+                    messages.success(request, _('Fleet participation registered.'))
                 except ValidationError as e:
                     err_messages = []
                     for errorname, message in e.message_dict.items():
@@ -244,9 +244,10 @@ def click_fatlink_view(request, token, hash, fatname):
                            'character_name': token.character_name}
                 return render(request, 'fleetactivitytracking/characternotexisting.html', context=context)
         else:
-            messages.error(request, 'FAT link has expired.')
+            messages.error(request, _('FAT link has expired.'))
     except (ObjectDoesNotExist, KeyError):
-        messages.error(request, 'Invalid FAT link.')
+        logger.exception("Failed to process FAT link.")
+        messages.error(request, _('Invalid FAT link.'))
     return redirect('auth_fatlink_view')
 
 

@@ -156,14 +156,12 @@
                 </div>
             </form>
             {% else %}
-            <div class="alert alert-warning text-center">No SRP requests for this fleet.</div>
+            <div class="alert alert-warning text-center">{% trans "No SRP requests for this fleet." %}</div>
             {% endif %}
         </div>
     </div>
-
-{% endblock content %}
-
-{% block extra_script %}
+<script src="{% static 'js/bootstrap-editable.min.js' %}"></script>
+<script>
 $(document).ready(function() {
     $.fn.editable.defaults.mode = 'inline';
     $.fn.editable.defaults.showbuttons = false;
@@ -196,4 +194,5 @@ $(document).ready(function() {
    });
     {% endfor %}
 });
-{% endblock extra_script %}
+</script>
+{% endblock content %}

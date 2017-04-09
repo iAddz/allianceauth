@@ -3,6 +3,7 @@ from eveonline.models import EveCharacter
 from eveonline.models import EveApiKeyPair
 from eveonline.models import EveAllianceInfo
 from eveonline.models import EveCorporationInfo
+from authentication.models import AuthServicesInfo
 from eveonline.providers import eve_adapter_factory, EveXmlProvider
 from services.managers.eve_api_manager import EveApiManager
 import logging
@@ -29,16 +30,16 @@ class EveManager(object):
 
     @staticmethod
     def create_character_obj(character, user, api_id):
-        EveCharacter.objects.create(
-            character_id = character.id,
-            character_name = character.name,
-            corporation_id = character.corp.id,
-            corporation_name = character.corp.name,
-            corporation_ticker = character.corp.ticker,
-            alliance_id = character.alliance.id,
-            alliance_name = character.alliance.name,
-            user = user,
-            api_id = api_id,
+        return EveCharacter.objects.create(
+            character_id=character.id,
+            character_name=character.name,
+            corporation_id=character.corp.id,
+            corporation_name=character.corp.name,
+            corporation_ticker=character.corp.ticker,
+            alliance_id=character.alliance.id,
+            alliance_name=character.alliance.name,
+            user=user,
+            api_id=api_id,
         )
 
     @staticmethod
@@ -55,6 +56,7 @@ class EveManager(object):
         model.alliance_id = char.alliance.id
         model.alliance_name = char.alliance.name
         model.save()
+        return model
 
     @staticmethod
     def create_api_keypair(api_id, api_key, user_id):
@@ -79,12 +81,12 @@ class EveManager(object):
 
     @staticmethod
     def create_alliance_obj(alliance, is_blue=False):
-        EveAllianceInfo.objects.create(
-            alliance_id = alliance.id,
-            alliance_name = alliance.name,
-            alliance_ticker = alliance.ticker,
-            executor_corp_id = alliance.executor_corp_id,
-            is_blue = is_blue,
+        return EveAllianceInfo.objects.create(
+            alliance_id=alliance.id,
+            alliance_name=alliance.name,
+            alliance_ticker=alliance.ticker,
+            executor_corp_id=alliance.executor_corp_id,
+            is_blue=is_blue,
         )
 
     @staticmethod
@@ -95,8 +97,9 @@ class EveManager(object):
     def update_alliance_obj(alliance, is_blue=None):
         model = EveAllianceInfo.objects.get(alliance_id=alliance.id)
         model.executor_corp_id = alliance.executor_corp_id
-        model.is_blue = model.is_blue if is_blue == None else is_blue
+        model.is_blue = model.is_blue if is_blue is None else is_blue
         model.save()
+        return model
 
     @staticmethod
     def populate_alliance(id):
@@ -104,9 +107,12 @@ class EveManager(object):
         alliance = EveManager.get_alliance(id)
         for corp_id in alliance.corp_ids:
             if not EveCorporationInfo.objects.filter(corporation_id=corp_id).exists():
-               EveManager.create_corporation(corp_id, is_blue=alliance_model.is_blue)
+                EveManager.create_corporation(corp_id, is_blue=alliance_model.is_blue)
         EveCorporationInfo.objects.filter(corporation_id__in=alliance.corp_ids).update(alliance=alliance_model)
-        EveCorporationInfo.objects.filter(alliance=alliance_model).exclude(corporation_id__in=alliance.corp_ids).update(alliance=None)
+        EveCorporationInfo.objects.filter(alliance=alliance_model).exclude(corporation_id__in=alliance.corp_ids).update(
+            alliance=None)
+        if alliance_model.is_blue:
+            EveCorporationInfo.objects.filter(alliance=alliance_model).update(is_blue=True)
 
     @classmethod
     def get_corporation(cls, corp_id):
@@ -122,13 +128,13 @@ class EveManager(object):
             alliance = EveAllianceInfo.objects.get(alliance_id=corp.alliance_id)
         except EveAllianceInfo.DoesNotExist:
             alliance = None
-        EveCorporationInfo.objects.create(
-            corporation_id = corp.id,
-            corporation_name = corp.name,
-            corporation_ticker = corp.ticker,
-            member_count = corp.members,
-            alliance = alliance,
-            is_blue = is_blue,
+        return EveCorporationInfo.objects.create(
+            corporation_id=corp.id,
+            corporation_name=corp.name,
+            corporation_ticker=corp.ticker,
+            member_count=corp.members,
+            alliance=alliance,
+            is_blue=is_blue,
         )
 
     @staticmethod
@@ -143,8 +149,9 @@ class EveManager(object):
             model.alliance = EveAllianceInfo.objects.get(alliance_id=corp.alliance_id)
         except EveAllianceInfo.DoesNotExist:
             model.alliance = None
-        model.is_blue = model.is_blue if is_blue == None else is_blue
+        model.is_blue = model.is_blue if is_blue is None else is_blue
         model.save()
+        return model
 
     @classmethod
     def get_itemtype(cls, type_id):
@@ -163,6 +170,14 @@ class EveManager(object):
             return EveApiKeyPair.objects.filter(user=user)
         else:
             logger.debug("No api keypairs found for user %s" % user)
+
+    @staticmethod
+    def get_all_api_key_pairs():
+        if EveApiKeyPair.objects.exists():
+            logger.debug("Returning all api keypairs.")
+            return EveApiKeyPair.objects.all()
+        else:
+            logger.debug("No api keypairs found.")
 
     @staticmethod
     def check_if_api_key_pair_exist(api_id):
@@ -240,6 +255,16 @@ class EveManager(object):
             return EveCharacter.objects.get(character_id=char_id)
 
         return None
+
+    @staticmethod
+    def get_main_character(user):
+        """
+        Get a characters main
+        :param user: django.contrib.auth.models.User
+        :return: EveCharacter
+        """
+        authserviceinfo = AuthServicesInfo.objects.get(user=user)
+        return EveManager.get_character_by_id(authserviceinfo.main_char_id)
 
     @staticmethod
     def get_characters_by_api_id(api_id):

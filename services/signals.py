@@ -1,25 +1,19 @@
 from __future__ import unicode_literals
+
+import logging
+
+from django.contrib.auth.models import User, Group, Permission
 from django.db import transaction
 from django.db.models.signals import m2m_changed
-from django.db.models.signals import post_save
-from django.db.models.signals import pre_save
-from django.db.models.signals import post_delete
 from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.contrib.auth.models import User
-import logging
-from services.tasks import update_jabber_groups
-from services.tasks import update_mumble_groups
-from services.tasks import update_forum_groups
-from services.tasks import update_ipboard_groups
-from services.tasks import update_discord_groups
-from services.tasks import update_teamspeak3_groups
-from services.tasks import update_discourse_groups
-from services.tasks import update_smf_groups
-from authentication.tasks import set_state
+
+from services.hooks import ServicesHook
+from alliance_auth.hooks import get_hooks
+from authentication.tasks import disable_user
 from authentication.tasks import disable_member
-from authentication.models import AuthServicesInfo
-from services.models import AuthTS
+from authentication.tasks import set_state
 
 logger = logging.getLogger(__name__)
 
@@ -30,59 +24,77 @@ def m2m_changed_user_groups(sender, instance, action, *args, **kwargs):
 
     def trigger_service_group_update():
         logger.debug("Triggering service group update for %s" % instance)
-        auth = AuthServicesInfo.objects.get(user=instance)
-        if auth.jabber_username:
-            update_jabber_groups.delay(instance.pk)
-        if auth.teamspeak3_uid:
-            update_teamspeak3_groups.delay(instance.pk)
-        if auth.forum_username:
-            update_forum_groups.delay(instance.pk)
-        if auth.smf_username:
-            update_smf_groups.delay(instance.pk)
-        if auth.ipboard_username:
-            update_ipboard_groups.delay(instance.pk)
-        if auth.discord_uid:
-            update_discord_groups.delay(instance.pk)
-        if auth.mumble_username:
-            update_mumble_groups.delay(instance.pk)
-        if auth.discourse_enabled:
-            update_discourse_groups.delay(instance.pk)
-        if auth.smf_username:
-            update_smf_groups.delay(instance.pk)
+        # Iterate through Service hooks
+        for svc in ServicesHook.get_services():
+            try:
+                svc.validate_user(instance)
+                svc.update_groups(instance)
+            except:
+                logger.exception('Exception running update_groups for services module %s on user %s' % (svc, instance))
 
     if instance.pk and (action == "post_add" or action == "post_remove" or action == "post_clear"):
         logger.debug("Waiting for commit to trigger service group update for %s" % instance)
         transaction.on_commit(trigger_service_group_update)
 
 
-def trigger_all_ts_update():
-    for auth in AuthServicesInfo.objects.filter(teamspeak3_uid__isnull=False):
-        update_teamspeak3_groups.delay(auth.user.pk)
+@receiver(m2m_changed, sender=User.user_permissions.through)
+def m2m_changed_user_permissions(sender, instance, action, *args, **kwargs):
+    logger.debug("Received m2m_changed from user %s permissions with action %s" % (instance, action))
+    logger.debug('sender: %s' % sender)
+    if instance.pk and (action == "post_remove" or action == "post_clear"):
+        logger.debug("Permissions changed for user {}, re-validating services".format(instance))
+        # Checking permissions for a single user is quite fast, so we don't need to validate
+        # That the permissions is a service permission, unlike groups.
+
+        def validate_all_services():
+            logger.debug("Validating all services for user {}".format(instance))
+            for svc in ServicesHook.get_services():
+                try:
+                    svc.validate_user(instance)
+                except:
+                    logger.exception(
+                        'Exception running validate_user for services module {} on user {}'.format(svc, user))
+
+        transaction.on_commit(lambda: validate_all_services())
 
 
-@receiver(m2m_changed, sender=AuthTS.ts_group.through)
-def m2m_changed_authts_group(sender, instance, action, *args, **kwargs):
-    logger.debug("Received m2m_changed from %s ts_group with action %s" % (instance, action))
-    if action == "post_add" or action == "post_remove":
-        trigger_all_ts_update()
+@receiver(m2m_changed, sender=Group.permissions.through)
+def m2m_changed_group_permissions(sender, instance, action, pk_set, *args, **kwargs):
+    logger.debug("Received m2m_changed from group %s permissions with action %s" % (instance, action))
+    if instance.pk and (action == "post_remove" or action == "post_clear"):
+        logger.debug("Checking if service permission changed for group {}".format(instance))
+        # As validating an entire groups service could lead to many thousands of permission checks
+        # first we check that one of the permissions changed is, in fact, a service permission.
+        perms = Permission.objects.filter(pk__in=pk_set)
+        got_change = False
+        service_perms = [svc.access_perm for svc in ServicesHook.get_services()]
+        for perm in perms:
+            natural_key = perm.natural_key()
+            path_perm = "{}.{}".format(natural_key[1], natural_key[0])
+            if path_perm not in service_perms:
+                # Not a service permission, keep searching
+                continue
+            for svc in ServicesHook.get_services():
+                if svc.access_perm == path_perm:
+                    logger.debug("Permissions changed for group {} on "
+                                 "service {}, re-validating services for groups users".format(instance, svc))
 
+                    def validate_all_groups_users_for_service():
+                        logger.debug("Performing validation for service {}".format(svc))
+                        for user in instance.user_set.all():
+                            svc.validate_user(user)
 
-@receiver(post_save, sender=AuthTS)
-def post_save_authts(sender, instance, *args, **kwargs):
-    logger.debug("Received post_save from %s" % instance)
-    trigger_all_ts_update()
-
-
-@receiver(post_delete, sender=AuthTS)
-def post_delete_authts(sender, instance, *args, **kwargs):
-    logger.debug("Received post_delete signal from %s" % instance)
-    trigger_all_ts_update()
+                    transaction.on_commit(validate_all_groups_users_for_service)
+                    got_change = True
+                    break  # Found service, break out of services iteration and go back to permission iteration
+        if not got_change:
+            logger.debug("Permission change for group {} was not service permission, ignoring".format(instance))
 
 
 @receiver(pre_delete, sender=User)
 def pre_delete_user(sender, instance, *args, **kwargs):
     logger.debug("Received pre_delete from %s" % instance)
-    disable_member(instance)
+    disable_user(instance)
 
 
 @receiver(pre_save, sender=User)
@@ -96,7 +108,7 @@ def pre_save_user(sender, instance, *args, **kwargs):
         old_instance = User.objects.get(pk=instance.pk)
         if old_instance.is_active and not instance.is_active:
             logger.info("Disabling services for inactivation of user %s" % instance)
-            disable_member(instance)
+            disable_user(instance)
         elif instance.is_active and not old_instance.is_active:
             logger.info("Assessing state of reactivated user %s" % instance)
             set_state(instance)
