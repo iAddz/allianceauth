@@ -105,7 +105,7 @@
                             <td class="text-center">{{ srpfleetrequest.additional_info }}</td>
                             <td class="text-center">{{ srpfleetrequest.srp_ship_name }}</td>
                             <td class="text-center">{{ srpfleetrequest.kb_total_loss | intcomma }} ISK</td>
-                            <td id="srpID{{srpfleetrequest.id}}" data-name="srp_total_amount" data-type="number" data-pk="{{srpfleetrequest.id}}" data-url="{% url 'auth_srp_request_update_amount_view' srpfleetrequest.id %}" data-params="{csrfmiddlewaretoken:'{{csrf_token}}'}" class="text-center">{{ srpfleetrequest.srp_total_amount | intcomma }} ISK</td>
+                            <td id="srpID{{srpfleetrequest.id}}" data-name="srp_total_amount" data-type="number" data-pk="{{srpfleetrequest.id}}" data-url="{% url 'auth_srp_request_update_amount' srpfleetrequest.id %}" data-params="{csrfmiddlewaretoken:'{{csrf_token}}'}" class="text-center">{{ srpfleetrequest.srp_total_amount | intcomma }} ISK</td>
                             <td class="text-center">{{ srpfleetrequest.post_time | date:"Y-m-d H:i" }}</td>
                             <td class="text-center">
                                 {% if srpfleetrequest.srp_status == "Approved" %}

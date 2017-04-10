@@ -10,7 +10,6 @@ from srp.models import SrpFleetMain
 from srp.models import SrpUserRequest
 from srp.form import SrpFleetMainForm
 from srp.form import SrpFleetUserRequestForm
-from srp.form import SrpFleetUpdateCostForm
 from srp.form import SrpFleetMainUpdateForm
 from services.managers.srp_manager import srpManager
 from notifications import notify
@@ -352,31 +351,22 @@ def srp_request_reject(request):
 
 @login_required
 @permission_required('auth.srp_management')
-def srp_request_update_amount_view(request, fleet_srp_request_id):
-    logger.debug("srp_request_update_amount_view called by user %s for fleet srp request id %s" % (
+def srp_request_update_amount(request, fleet_srp_request_id):
+    logger.debug("srp_request_update_amount called by user %s for fleet srp request id %s" % (
         request.user, fleet_srp_request_id))
 
     if SrpUserRequest.objects.filter(id=fleet_srp_request_id).exists() is False:
         logger.error("Unable to locate SRP request id %s for user %s" % (fleet_srp_request_id, request.user))
         messages.error(request, _('Unable to locate SRP request with ID %(requestid)s') % {"requestid": fleet_srp_request_id})
         return redirect("auth_srp_management_view")
-
-    if request.method == 'POST':
-        form = SrpFleetUpdateCostForm(request.POST)
-        logger.debug("Request type POST contains form valid: %s" % form.is_valid())
-        srp_request = SrpUserRequest.objects.get(id=fleet_srp_request_id)
-        srp_request.srp_total_amount = form.data['value']
-        srp_request.save()
-        logger.info("Updated srp request id %s total to %s by user %s" % (
-            fleet_srp_request_id, form.data['value'], request.user))
-        return JsonResponse({"success":True,"pk":fleet_srp_request_id,"newValue":form.data['value']})
-    else:
-        logger.debug("Returning blank SrpFleetUpdateCostForm")
-        form = SrpFleetUpdateCostForm()
-
-    render_items = {'form': form}
-
-    return render(request, 'registered/srpfleetrequestamount.html', context=render_items)
+        
+    form = SrpFleetUpdateCostForm(request.POST)
+    srp_request = SrpUserRequest.objects.get(id=fleet_srp_request_id)
+    srp_request.srp_total_amount = form.data['value']
+    srp_request.save()
+    logger.info("Updated srp request id %s total to %s by user %s" % (
+        fleet_srp_request_id, form.data['value'], request.user))
+    return JsonResponse({"success":True,"pk":fleet_srp_request_id,"newValue":form.data['value']})
 
 
 @login_required

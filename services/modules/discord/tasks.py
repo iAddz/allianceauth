@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+import time
 
 from alliance_auth.celeryapp import app
 from django.conf import settings
@@ -101,7 +102,7 @@ class DiscordTasks:
             character = EveManager.get_main_character(user)
             logger.debug("Updating user %s discord nickname to %s" % (user, character.character_name))
             try:
-                DiscordOAuthManager.update_nickname(user.discord.uid, character.character_name)
+                DiscordOAuthManager.update_nickname(user.discord.uid, ("[" + character.corporation_ticker + "]" + character.character_name))
             except Exception as e:
                 if self:
                     logger.exception("Discord nickname sync failed for %s, retrying in 10 mins" % user)
@@ -118,6 +119,7 @@ class DiscordTasks:
     def update_all_nicknames():
         logger.debug("Updating ALL discord nicknames")
         for discord_user in DiscordUser.objects.exclude(uid__exact=''):
+            time.sleep(1)
             DiscordTasks.update_nickname.delay(discord_user.user.user_id)
 
     @classmethod

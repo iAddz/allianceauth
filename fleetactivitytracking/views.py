@@ -108,13 +108,13 @@ def fatlink_statistics_view(request, year=datetime.date.today().year, month=date
             fat_stats[corp.corporation_id] = CorpStat(corp.corporation_id, start_of_month, start_of_next_month)
 
     # get FAT stats for corps not in alliance
-    fats_in_span = Fat.objects.filter(fatlink__fatdatetime__gte=start_of_month).filter(
-        fatlink__fatdatetime__lt=start_of_next_month).exclude(character__corporation_id__in=fat_stats)
+    #fats_in_span = Fat.objects.filter(fatlink__fatdatetime__gte=start_of_month).filter(
+    #    fatlink__fatdatetime__lt=start_of_next_month).exclude(character__corporation_id__in=fat_stats)
 
-    for fat in fats_in_span:
-        if fat.character.corporation_id not in fat_stats:
-            fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
-                                                               start_of_next_month)
+    #for fat in fats_in_span:
+    #    if fat.character.corporation_id not in fat_stats:
+    #        fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
+    #                                                           start_of_next_month)
 
     # collect and sort stats
     stat_list = [fat_stats[x] for x in fat_stats]
