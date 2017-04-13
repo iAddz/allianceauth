@@ -206,6 +206,11 @@ def srp_request_view(request, fleet_srp):
         logger.debug("Request type POST contains form valid: %s" % form.is_valid())
 
         if form.is_valid():
+            if SrpUserRequest.objects.filter(killboard_link=form.cleaned_data['killboard_link']).exists():
+                messages.error(request,
+                               "This Killboard link has already been posted.")
+                return redirect("auth_srp_management_view")
+
             authinfo = AuthServicesInfo.objects.get(user=request.user)
             character = EveManager.get_character_by_id(authinfo.main_char_id)
             srp_fleet_main = SrpFleetMain.objects.get(fleet_srp_code=fleet_srp)
@@ -264,6 +269,9 @@ def srp_request_remove(request):
     logger.debug("srp_request_remove called by user %s for %s srp request id's" % (request.user, numrequests))
     stored_fleet_view = None
     for srp_request_id in request.POST:
+        if numrequests == 0:
+            messages.warning(request, "No SRP requests selected")
+            return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue
         if SrpUserRequest.objects.filter(id=srp_request_id).exists():
@@ -288,6 +296,9 @@ def srp_request_approve(request):
     logger.debug("srp_request_approve called by user %s for %s srp request id's" % (request.user, numrequests))
     stored_fleet_view = None
     for srp_request_id in request.POST:
+        if numrequests == 0:
+            messages.warning(request, "No SRP requests selected")
+            return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue
         if SrpUserRequest.objects.filter(id=srp_request_id).exists():
@@ -323,6 +334,9 @@ def srp_request_reject(request):
     logger.debug("srp_request_reject called by user %s for %s srp request id's" % (request.user, numrequests))
     stored_fleet_view = None
     for srp_request_id in request.POST:
+        if numrequests == 0:
+            messages.warning(request, "No SRP requests selected")
+            return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue
         if SrpUserRequest.objects.filter(id=srp_request_id).exists():
@@ -359,14 +373,13 @@ def srp_request_update_amount(request, fleet_srp_request_id):
         logger.error("Unable to locate SRP request id %s for user %s" % (fleet_srp_request_id, request.user))
         messages.error(request, _('Unable to locate SRP request with ID %(requestid)s') % {"requestid": fleet_srp_request_id})
         return redirect("auth_srp_management_view")
-        
-    form = SrpFleetUpdateCostForm(request.POST)
+
     srp_request = SrpUserRequest.objects.get(id=fleet_srp_request_id)
-    srp_request.srp_total_amount = form.data['value']
+    srp_request.srp_total_amount = request.POST['value']
     srp_request.save()
     logger.info("Updated srp request id %s total to %s by user %s" % (
-        fleet_srp_request_id, form.data['value'], request.user))
-    return JsonResponse({"success":True,"pk":fleet_srp_request_id,"newValue":form.data['value']})
+        fleet_srp_request_id, request.POST['value'], request.user))
+    return JsonResponse({"success":True,"pk":fleet_srp_request_id,"newValue":request.POST['value']})
 
 
 @login_required

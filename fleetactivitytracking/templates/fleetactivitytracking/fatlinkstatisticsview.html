@@ -31,7 +31,7 @@
                 <td>
                     <img src="https://image.eveonline.com/Corporation/{{ corpStat.corp.corporation_id }}_32.png" class="ra-avatar img-responsive">
                 </td>
-                <td class="text-center">[{{ corpStat.corp.corporation_ticker }}]</td>
+                <td class="text-center"><a href="{% url 'auth_fatlink_view_statistics_corp' corpStat.corp.corporation_id %}">[{{ corpStat.corp.corporation_ticker }}]</td>
                 <td class="text-center">{{ corpStat.corp.corporation_name }}</td>
                 <td class="text-center">{{ corpStat.corp.member_count }}</td>
                 <td class="text-center">{{ corpStat.n_fats }}</td>

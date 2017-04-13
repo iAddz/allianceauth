@@ -8,35 +8,40 @@
 
 {% block page_title %}Srp Fleet Data{% endblock page_title %}
 {% block extra_css %}
-<link href="{% static 'css/checkbox.css' %}" rel="stylesheet" type="text/css">
-<link href="{% static 'css/bootstrap-editable.css' %}" rel="stylesheet" type="text/css">
-<style>
-.radio label, .checkbox label {
-    padding-left: 10px;
-}
-.editable {
-  width:150px;
-}
-.editableform .form-control {
-    width: 95%;
+  {% include 'bundles/x-editable.css.html' %}
+  <link href="{% static 'css/checkbox.css' %}" rel="stylesheet" type="text/css">
+  <style>
+  .radio label, .checkbox label {
+      padding-left: 10px;
+  }
+  .editable {
+    width:150px;
     text-align: center;
-    margin-left: 10px;
-}
+  }
+  .editableform .form-control {
+      width: 95%;
+      text-align: center;
+      margin-left: 10px;
+  }
 
-.editable-input {
-    width: 95%;
-}
-.radio, .checkbox {
-    margin-top: 0px;
-    margin-bottom: 0px;
-}
-.editable-error-block {
-    white-space: nowrap;
-}
-.editable-click, a.editable-click, a.editable-click:hover {
-    border-bottom: none;
-}
-</style>
+  .editable-input {
+      width: 95%;
+  }
+  .radio, .checkbox {
+      margin-top: 0px;
+      margin-bottom: 0px;
+  }
+  .editable-error-block {
+      white-space: nowrap;
+  }
+  .editable-click, a.editable-click, a.editable-click:hover {
+      border-bottom: none;
+  }
+  .tooltip-inner {
+    white-space:pre;
+    max-width: none;
+  }
+  </style>
 {% endblock extra_css %}
 
 {% block content %}
@@ -88,7 +93,11 @@
                         <th class="text-center">{% trans "Additional Info" %}</th>
                         <th class="text-center">{% trans "Ship Type" %}</th>
                         <th class="text-center">{% trans "Killboard Loss Amt" %}</th>
-                        <th class="text-center">{% trans "SRP ISK Cost" %}</th>
+                        <th class="text-center">{% trans "SRP ISK Cost" %}
+                        {% blocktrans %}<i class="glyphicon glyphicon-question-sign" rel="tooltip" title="Click value to edit
+Enter to save&next
+ESC to cancel"
+                        id="blah"></i></th>{% endblocktrans %}
                         <th class="text-center">{% trans "Post Time" %}</th>
                         <th class="text-center">{% trans "Status" %}</th>
                         {% if perms.auth.srp_management %}
@@ -105,7 +114,7 @@
                             <td class="text-center">{{ srpfleetrequest.additional_info }}</td>
                             <td class="text-center">{{ srpfleetrequest.srp_ship_name }}</td>
                             <td class="text-center">{{ srpfleetrequest.kb_total_loss | intcomma }} ISK</td>
-                            <td id="srpID{{srpfleetrequest.id}}" data-name="srp_total_amount" data-type="number" data-pk="{{srpfleetrequest.id}}" data-url="{% url 'auth_srp_request_update_amount' srpfleetrequest.id %}" data-params="{csrfmiddlewaretoken:'{{csrf_token}}'}" class="text-center">{{ srpfleetrequest.srp_total_amount | intcomma }} ISK</td>
+                            <td class="srp" data-name="srp_total_amount" data-type="number" data-pk="{{srpfleetrequest.id}}" data-url="{% url 'auth_srp_request_update_amount' srpfleetrequest.id %}" data-params="{csrfmiddlewaretoken:'{{csrf_token}}'}" class="text-center">{{ srpfleetrequest.srp_total_amount | intcomma }} ISK</td>
                             <td class="text-center">{{ srpfleetrequest.post_time | date:"Y-m-d H:i" }}</td>
                             <td class="text-center">
                                 {% if srpfleetrequest.srp_status == "Approved" %}
@@ -160,39 +169,44 @@
             {% endif %}
         </div>
     </div>
-<script src="{% static 'js/bootstrap-editable.min.js' %}"></script>
-<script>
-$(document).ready(function() {
-    $.fn.editable.defaults.mode = 'inline';
-    $.fn.editable.defaults.showbuttons = false;
-    $.fn.editable.defaults.highlight = "#AAFF80";
-
-
-    {% for srpfleetrequest in srpfleetrequests %}
-    $('#srpID{{srpfleetrequest.id}}').editable({
-        display: function(value, response) {
-            return false;
-        },
-        success: function(response, newValue) {
-            newValue = parseInt(newValue);
-            newvalue = newValue.toLocaleString() + " ISK";
-            $(this).html(newvalue.bold());
-        },
-        validate: function(value) {
-            if (value === null || value === '') {
-                return 'Empty values not allowed';
-            }
-        }
-    });
-    $('#srpID{{srpfleetrequest.id}}').on('hidden', function(e, reason){
-            if(reason === 'save' || reason === 'nochange') {
-            var $next = $(this).closest('tr').next().find('.editable');
-            setTimeout(function() {
-                $next.editable('show');
-            }, 400); 
-        }
-   });
-    {% endfor %}
-});
-</script>
 {% endblock content %}
+
+{% block extra_javascript %}
+    {% include 'bundles/x-editable-js.html' %}
+{% endblock %}
+
+{% block extra_script %}
+  $(document).ready(function() {
+      $.fn.editable.defaults.mode = 'inline';
+      $.fn.editable.defaults.showbuttons = false;
+      $.fn.editable.defaults.highlight = "#AAFF80";
+
+
+      $('.srp').editable({
+          display: function(value, response) {
+              return false;
+          },
+          success: function(response, newValue) {
+              newValue = parseInt(newValue);
+              newvalue = newValue.toLocaleString() + " ISK";
+              $(this).html(newvalue.bold());
+          },
+          validate: function(value) {
+              if (value === null || value === '') {
+                  return 'Empty values not allowed';
+              }
+          }
+      });
+      $('.srp').on('hidden', function(e, reason){
+              if(reason === 'save' || reason === 'nochange') {
+              var $next = $(this).closest('tr').next().find('.editable');
+              setTimeout(function() {
+                  $next.editable('show');
+              }, 400); 
+          }
+     });
+  });
+  $(document).ready(function(){
+    $("[rel=tooltip]").tooltip({ placement: 'top'});
+});
+{% endblock extra_script %}
