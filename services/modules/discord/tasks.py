@@ -91,6 +91,7 @@ class DiscordTasks:
     def update_all_groups():
         logger.debug("Updating ALL discord groups")
         for discord_user in DiscordUser.objects.exclude(uid__exact=''):
+            time.sleep(1)
             DiscordTasks.update_groups.delay(discord_user.user.pk)
 
     @staticmethod
