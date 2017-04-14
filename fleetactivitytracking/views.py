@@ -123,7 +123,10 @@ def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
     corp_members = EveCharacter.objects.filter(corporation_id=corpid).values('user_id').distinct()
 
     for member in corp_members:
-        fat_stats[member['user_id']] = MemberStat(member, start_of_month, start_of_next_month)
+        try:
+            fat_stats[member['user_id']] = MemberStat(member, start_of_month, start_of_next_month)
+        except ObjectDoesNotExist:
+            continue
 
     # collect and sort stats
     stat_list = [fat_stats[x] for x in fat_stats]
@@ -165,9 +168,12 @@ def fatlink_statistics_view(request, year=datetime.date.today().year, month=date
 
     for fat in fats_in_span:
         if fat.character.corporation_id not in fat_stats:
-            fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
-                                                               start_of_next_month)
-
+            try:
+                fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
+                                                                start_of_next_month)
+            except ObjectDoesNotExist:
+                continue
+                                                                
     # collect and sort stats
     stat_list = [fat_stats[x] for x in fat_stats]
     stat_list.sort(key=lambda stat: stat.corp.corporation_name)
