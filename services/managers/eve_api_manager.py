@@ -326,7 +326,7 @@ class EveApiManager:
             raise e
         except (requests.exceptions.RequestException, HTTPError, URLError) as e:
             raise EveApiManager.ApiServerUnreachableError(e)
-        if api_mask not info['access_mask']:
+        if api_mask != info['access_mask']:
             api = EveApiKeyPair.objects.get(api_id=api_id)
             api.api_mask = info['access_mask']
             api.save()
