@@ -43,7 +43,7 @@ class UpdateKeyForm(forms.Form):
                         settings.REJECT_OLD_APIS_MARGIN):
             raise forms.ValidationError('API key is too old. Please create a new key')
         try:
-            EveApiManager.validate_api(self.cleaned_data['api_id'], self.cleaned_data['api_key'], self.user)
+            EveApiManager.validate_api(self.cleaned_data['api_id'], self.cleaned_data['api_key'], self.user, '0')
             return self.cleaned_data
         except EveApiManager.ApiValidationError as e:
             raise forms.ValidationError(str(e))

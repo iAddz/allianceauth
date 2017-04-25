@@ -5,6 +5,7 @@ import evelink.eve
 from authentication.states import MEMBER_STATE, BLUE_STATE
 from authentication.models import AuthServicesInfo
 from eveonline.models import EveCharacter
+from eveonline.models import EveApiKeyPair
 from django.conf import settings
 import requests
 try:
@@ -316,7 +317,7 @@ class EveApiManager:
         return True
 
     @staticmethod
-    def validate_api(api_id, api_key, user):
+    def validate_api(api_id, api_key, user, api_mask):
         try:
             info = EveApiManager.get_api_info(api_id, api_key).result
         except evelink.api.APIError as e:
@@ -325,6 +326,10 @@ class EveApiManager:
             raise e
         except (requests.exceptions.RequestException, HTTPError, URLError) as e:
             raise EveApiManager.ApiServerUnreachableError(e)
+        if api_mask not info['access_mask']:
+            api = EveApiKeyPair.objects.get(api_id=api_id)
+            api.api_mask = info['access_mask']
+            api.save()
         auth = AuthServicesInfo.objects.get(user=user)
         states = [auth.state]
         from authentication.tasks import determine_membership_by_character  # circular import issue
