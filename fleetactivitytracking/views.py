@@ -97,7 +97,7 @@ def fatlink_view(request):
 
     latest_fats = Fat.objects.filter(user=user).order_by('-id')[:5]
     if user.has_perm('auth.fleetactivitytracking'):
-        latest_links = Fatlink.objects.all().order_by('-id')[:5]
+        latest_links = Fatlink.objects.all().order_by('-id')[:10]
         context = {'user': user, 'fats': latest_fats, 'fatlinks': latest_links}
 
     else:
