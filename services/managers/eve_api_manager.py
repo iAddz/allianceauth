@@ -327,7 +327,7 @@ class EveApiManager:
         except (requests.exceptions.RequestException, HTTPError, URLError) as e:
             raise EveApiManager.ApiServerUnreachableError(e)
         #Storing API info
-        if EveApiKeyPair.objects.filter(api_id=api_id,api_key=api.api_key).exists():
+        if EveApiKeyPair.objects.filter(api_id=api_id,api_key=api_key).exists():
             api = EveApiKeyPair.objects.get(api_id=api_id)
             api.api_acc = True if info['type'] == 'account' else False
             if api_mask != info['access_mask']:
