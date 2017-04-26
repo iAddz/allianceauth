@@ -25,7 +25,7 @@ def refresh_api(api):
     logger.debug('Running update on api key %s' % api.api_id)
     still_valid = True
     try:
-        EveApiManager.validate_api(api.api_id, api.api_key, api.user, api.api_mask)
+        EveApiManager.validate_api(api.api_id, api.api_key, api.user, api.api_mask, api.api_acc)
         # Update characters
         characters = EveManager.get_characters_from_api(api)
         for c in characters:

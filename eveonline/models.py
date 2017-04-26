@@ -25,6 +25,7 @@ class EveApiKeyPair(models.Model):
     api_id = models.CharField(max_length=254, unique=True)
     api_key = models.CharField(max_length=254)
     api_mask = models.CharField(max_length=254)
+    api_acc = models.BooleanField(default=False)
     user = models.ForeignKey(User, blank=True, null=True)
     sso_verified = models.BooleanField(default=False)
 

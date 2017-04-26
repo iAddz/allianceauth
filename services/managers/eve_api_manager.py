@@ -317,7 +317,7 @@ class EveApiManager:
         return True
 
     @staticmethod
-    def validate_api(api_id, api_key, user, api_mask):
+    def validate_api(api_id, api_key, user, api_mask, api_acc):
         try:
             info = EveApiManager.get_api_info(api_id, api_key).result
         except evelink.api.APIError as e:
@@ -326,10 +326,15 @@ class EveApiManager:
             raise e
         except (requests.exceptions.RequestException, HTTPError, URLError) as e:
             raise EveApiManager.ApiServerUnreachableError(e)
-        if api_mask != info['access_mask']:
+        #Storing API info
+        if EveApiKeyPair.objects.filter(api_id=api_id,api_key=api.api_key).exists():
             api = EveApiKeyPair.objects.get(api_id=api_id)
-            api.api_mask = info['access_mask']
-            api.save()
+            api.api_acc = True if info['type'] == 'account' else False
+            if api_mask != info['access_mask']:
+                api.api_mask = info['access_mask']
+            if api.api_acc != api_acc or api_mask != info['access_mask']:
+                api.save()
+
         auth = AuthServicesInfo.objects.get(user=user)
         states = [auth.state]
         from authentication.tasks import determine_membership_by_character  # circular import issue
