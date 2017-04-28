@@ -8,4 +8,6 @@ urlpatterns = [
     url(r'^(?P<corp_id>(\d)*)/$', corputils.views.corpstats_view, name='view_corp'),
     url(r'^(?P<corp_id>(\d)+)/update/$', corputils.views.corpstats_update, name='update'),
     url(r'^search/$', corputils.views.corpstats_search, name='search'),
+    url(r'^apistats/$', corputils.views.apistats_view, name='apistats'),
+    url(r'^apistats/(?P<corp_id>(\d)*)/$', corputils.views.apistats_view, name='apistats_corp'),
     ]
