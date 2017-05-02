@@ -54,7 +54,8 @@ class CorpStat(object):
 
     def avg_fat(self):
         return "%.2f" % (float(self.n_fats) / float(self.corp.member_count))
-    
+
+
 class MemberStat(object):
     def __init__(self, member, start_of_month, start_of_next_month, mainchid=None):
         if mainchid:
@@ -62,10 +63,10 @@ class MemberStat(object):
         else:
             self.mainchid = AuthServicesInfo.objects.get(user_id=member['user_id']).main_char_id
         self.mainchar = EveCharacter.objects.get(character_id=self.mainchid)
-        nchars = 0;
+        nchars = 0
         for alliance_id in settings.STR_ALLIANCE_IDS:
             nchars += EveCharacter.objects.filter(user_id=member['user_id']).filter(alliance_id=alliance_id).count()
-        self.n_chars = nchars;
+        self.n_chars = nchars
         self.n_fats = Fat.objects.filter(user_id=member['user_id']).filter(
             fatlink__fatdatetime__gte=start_of_month).filter(fatlink__fatdatetime__lte=start_of_next_month).count()
         
@@ -105,6 +106,7 @@ def fatlink_view(request):
 
     return render(request, 'fleetactivitytracking/fatlinkview.html', context=context)
 
+
 @login_required
 @permission_required('auth.fleetactivitytracking_statistics')
 def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
@@ -118,7 +120,6 @@ def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
     start_of_month = datetime.datetime(year, month, 1)
     start_of_next_month = first_day_of_next_month(year, month)
     start_of_previous_month = first_day_of_previous_month(year, month)
-    context = {}
     fat_stats = {}
     corp_members = EveCharacter.objects.filter(corporation_id=corpid).values('user_id').distinct()
 
@@ -132,13 +133,11 @@ def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
     stat_list = [fat_stats[x] for x in fat_stats]
     stat_list.sort(key=lambda stat: stat.mainchar.character_name)
     stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.n_chars), reverse=True)
-
+    
+    context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
+           'previous_month': start_of_previous_month, 'corpid': corpid}
     if datetime.datetime.now() > start_of_next_month:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month, 'next_month': start_of_next_month, 'corpid': corpid}
-    else:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month, 'corpid': corpid}
+        context.update({'next_month': start_of_next_month})
 
     return render(request, 'fleetactivitytracking/fatlinkstatisticscorpview.html', context=context)
 
@@ -179,12 +178,10 @@ def fatlink_statistics_view(request, year=datetime.date.today().year, month=date
     stat_list.sort(key=lambda stat: stat.corp.corporation_name)
     stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.corp.member_count), reverse=True)
 
+    context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
+           'previous_month': start_of_previous_month}
     if datetime.datetime.now() > start_of_next_month:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month, 'next_month': start_of_next_month}
-    else:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month}
+        context.update({'next_month': start_of_next_month})
 
     return render(request, 'fleetactivitytracking/fatlinkstatisticsview.html', context=context)
 
