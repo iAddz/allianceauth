@@ -12,7 +12,6 @@ from optimer.form import opForm
 from optimer.models import optimer
 from authentication.decorators import members_and_blues
 
-import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,10 +24,9 @@ def optimer_view(request):
     logger.debug("optimer_view called by user %s" % request.user)
     render_items = {'optimer': optimer.objects.all(),
                     'future_timers': optimer.objects.all().filter(
-                        start__gte=datetime.datetime.now()),
+                        start__gte=timezone.now()),
                     'past_timers': optimer.objects.all().filter(
-                        start__lt=datetime.datetime.now()).order_by('-start')}
-    
+                        start__lt=timezone.now()).order_by('-start')}
 
     return render(request, 'registered/operationmanagement.html', context=render_items)
 
