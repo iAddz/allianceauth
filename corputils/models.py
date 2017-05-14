@@ -174,8 +174,9 @@ class CorpStats(models.Model):
     def get_member_objects(self, user):
         show_apis = self.show_apis(user)
         member_list = [CorpStats.MemberObject(id, name, show_apis=show_apis) for id, name in self.members.items()]
-        outlist = sorted([m for m in member_list if m.main_user], key=attrgetter('main_user', 'character_name'))
-        outlist = outlist + sorted([m for m in member_list if not m.main_user], key=attrgetter('character_name'))
+        outlist = sorted([m for m in member_list if not m.main_user], key=attrgetter('character_name'))
+        outlist = outlist + sorted([m for m in member_list if m.main_user], key=attrgetter('main_user', 'character_name'))
+        
         return outlist
 
     def can_update(self, user):

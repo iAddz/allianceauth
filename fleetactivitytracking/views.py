@@ -2,8 +2,7 @@ from __future__ import unicode_literals
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
@@ -40,6 +39,11 @@ def get_page(model_list, page_num):
     except EmptyPage:
         fats = p.page(p.num_pages)
     return fats
+
+
+def access_fatstats_test(user):
+    return user.has_perm('auth.fleetactivitytracking_statistics') or user.has_perm(
+        'fleetactivitytracking.fat_statistics_corp')
 
 
 class CorpStat(object):
@@ -93,25 +97,33 @@ def fatlink_view(request):
     # If the user has the right privileges the site will also show the latest fatlinks with the options to add VIPs and
     # manually add players.
     user = request.user
-    logger.debug("fatlink_view called by user %s" % request.user)
+    logger.debug("fatlink_view called by user %s" % user)
+    corp_id = EveManager.get_main_character(user).corporation_id
+    month = datetime.date.today().month
+    year = datetime.date.today().year
 
     latest_fats = Fat.objects.filter(user=user).order_by('-id')[:5]
     if user.has_perm('auth.fleetactivitytracking'):
         latest_links = Fatlink.objects.all().order_by('-id')[:10]
-        context = {'user': user, 'fats': latest_fats, 'fatlinks': latest_links}
+        my_links = Fatlink.objects.filter(creator_id=user).order_by('-id')[:5]
+        context = {'user': user, 'month': month, 'year': year,  'fats': latest_fats, 'fatlinks': latest_links, 'mylinks': my_links, 'corpid': corp_id}
 
     else:
-        context = {'user': user, 'fats': latest_fats}
+        context = {'user': user, 'month': month, 'year': year, 'fats': latest_fats, 'corpid': corp_id}
 
     return render(request, 'fleetactivitytracking/fatlinkview.html', context=context)
 
 @login_required
-@permission_required('auth.fleetactivitytracking_statistics')
+@user_passes_test(access_fatstats_test)
 def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
     if year is None:
         year = datetime.date.today().year
     if month is None:
         month = datetime.date.today().month
+
+    #if user tries to use another corpid in url, redirect back to their own
+    if not request.user.has_perm('auth.fleetactivitytracking_statistics'):
+        corpid = EveManager.get_main_character(request.user).corporation_id
 
     year = int(year)
     month = int(month)
@@ -144,8 +156,36 @@ def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
 
 
 @login_required
+def fatlink_corponly_statistics_view(request, corpid, year=datetime.date.today().year):
+    year = int(year)
+    logger.debug("Personal statistics view for year %i called by %s" % (year, request.user))
+
+    user = request.user
+    logger.debug("fatlink_personal_statistics_view called by user %s" % request.user)
+
+    corp_fats = Fat.objects.filter(character__corporation_id=corpid)
+
+    monthlystats = [0 for month in range(1, 13)]
+
+    for fat in corp_fats:
+        fatdate = fat.fatlink.fatdatetime
+        if fatdate.year == year:
+            monthlystats[fatdate.month - 1] += 1
+
+    monthlystats = [(i + 1, datetime.date(year, i + 1, 1).strftime("%h"), monthlystats[i]) for i in range(12)]
+
+    if datetime.datetime.now() > datetime.datetime(year + 1, 1, 1):
+        context = {'user': user, 'monthlystats': monthlystats, 'year': year, 'previous_year': year - 1,
+                   'next_year': year + 1, 'corpid': corpid}
+    else:
+        context = {'user': user, 'monthlystats': monthlystats, 'year': year, 'previous_year': year - 1, 'corpid': corpid}
+
+    return render(request, 'fleetactivitytracking/fatlinkstatisticscorpoverview.html', context=context)
+
+
+@login_required
 @permission_required('auth.fleetactivitytracking_statistics')
-def fatlink_statistics_view(request, year=datetime.date.today().year, month=datetime.date.today().month):
+def fatlink_statistics_view(request, year, month):
     year = int(year)
     month = int(month)
     start_of_month = datetime.datetime(year, month, 1)
@@ -180,10 +220,10 @@ def fatlink_statistics_view(request, year=datetime.date.today().year, month=date
     stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.corp.member_count), reverse=True)
 
     if datetime.datetime.now() > start_of_next_month:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
+        context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
                    'previous_month': start_of_previous_month, 'next_month': start_of_next_month}
     else:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
+        context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
                    'previous_month': start_of_previous_month}
 
     return render(request, 'fleetactivitytracking/fatlinkstatisticsview.html', context=context)

@@ -10,6 +10,17 @@ def get_sentinel_user():
     return User.objects.get_or_create(username='deleted')[0]
 
 
+class FatLinks(models.Model):
+    """
+    Dummy model for holding permissions
+    """
+    class Meta:
+        managed = False
+        permissions = (
+            ('fat_statistics_corp', 'Can view corp statistics only'),
+)
+
+
 @python_2_unicode_compatible
 class Fatlink(models.Model):
     fatdatetime = models.DateTimeField(default=timezone.now)
