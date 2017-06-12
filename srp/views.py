@@ -194,12 +194,12 @@ def srp_fleet_mark_uncompleted(request, fleet_id):
 @members_and_blues()
 def srp_request_view(request, fleet_srp):
     logger.debug("srp_request_view called by user %s for fleet srp code %s" % (request.user, fleet_srp))
-    completed = False
-    no_srp_code = False
 
     if SrpFleetMain.objects.filter(fleet_srp_code=fleet_srp).exists() is False:
-        no_srp_code = True
         logger.error("Unable to locate SRP Fleet using code %s for user %s" % (fleet_srp, request.user))
+        messages.error(request, 
+                       _('Unable to locate SRP code with ID %(srpfleetid)s') % {"srpfleetid": fleet_srp})
+        return redirect("auth_srp_management_view")
 
     if request.method == 'POST':
         form = SrpFleetUserRequestForm(request.POST)
@@ -208,7 +208,7 @@ def srp_request_view(request, fleet_srp):
         if form.is_valid():
             if SrpUserRequest.objects.filter(killboard_link=form.cleaned_data['killboard_link']).exists():
                 messages.error(request,
-                               "This Killboard link has already been posted.")
+                               _("This Killboard link has already been posted."))
                 return redirect("auth_srp_management_view")
 
             authinfo = AuthServicesInfo.objects.get(user=request.user)
@@ -236,28 +236,25 @@ def srp_request_view(request, fleet_srp):
             characters = EveManager.get_characters_by_owner_id(request.user.id)
             for character in characters:
                 if character.character_name == victim_name:
-                    srp_ship_name = EveManager.get_itemtype(ship_type_id).name
-                    srp_request.srp_ship_name = srp_ship_name
-                    kb_total_loss = ship_value
-                    srp_request.kb_total_loss = kb_total_loss
+                    srp_request.srp_ship_name = EveManager.get_itemtype(ship_type_id).name
+                    srp_request.kb_total_loss = ship_value
                     srp_request.post_time = post_time
                     srp_request.save()
-                    completed = True
                     logger.info("Created SRP Request on behalf of user %s for fleet name %s" % (
                         request.user, srp_fleet_main.fleet_name))
-                    messages.success(request, _('Submitted SRP request for your %(ship)s.') % {"ship": srp_ship_name})
+                    messages.success(request, _('Submitted SRP request for your %(ship)s.') % {"ship": srp_request.srp_ship_name})
                     return redirect("auth_srp_management_view")
                 else:
                     continue
             messages.error(request,
-                           "The character %s does not belong to your AllianceAuth account. Please add the API key for this character and try again" 
-                                % victim_name)
+                           _("%(charname)s does not belong to your Auth account. Please add the API key for this character and try again") 
+                                % {"charname": victim_name})
             return redirect("auth_srp_management_view")
     else:
         logger.debug("Returning blank SrpFleetUserRequestForm")
         form = SrpFleetUserRequestForm()
 
-    render_items = {'form': form, "completed": completed, "no_srp_code": no_srp_code}
+    render_items = {'form': form}
 
     return render(request, 'registered/srpfleetrequest.html', context=render_items)
 
@@ -270,7 +267,7 @@ def srp_request_remove(request):
     stored_fleet_view = None
     for srp_request_id in request.POST:
         if numrequests == 0:
-            messages.warning(request, "No SRP requests selected")
+            messages.warning(request, _("No SRP requests selected"))
             return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue
@@ -297,7 +294,7 @@ def srp_request_approve(request):
     stored_fleet_view = None
     for srp_request_id in request.POST:
         if numrequests == 0:
-            messages.warning(request, "No SRP requests selected")
+            messages.warning(request, _("No SRP requests selected"))
             return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue
@@ -335,7 +332,7 @@ def srp_request_reject(request):
     stored_fleet_view = None
     for srp_request_id in request.POST:
         if numrequests == 0:
-            messages.warning(request, "No SRP requests selected")
+            messages.warning(request, _("No SRP requests selected"))
             return redirect("auth_srp_management_view")
         if srp_request_id == "csrfmiddlewaretoken":
             continue

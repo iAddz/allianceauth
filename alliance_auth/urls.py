@@ -11,7 +11,7 @@ import groupmanagement.views
 import optimer.views
 import timerboard.views
 import fleetactivitytracking.views
-import fleetup.views
+import fleetup.urls
 import srp.views
 import notifications.views
 import hrapplications.views
@@ -75,12 +75,7 @@ urlpatterns = [
 urlpatterns += i18n_patterns(
 
     # Fleetup
-    url(r'^fleetup/$', fleetup.views.fleetup_view, name='auth_fleetup_view'),
-    url(r'^fleetup/fittings/$', fleetup.views.fleetup_fittings, name='auth_fleetup_fittings'),
-    url(r'^fleetup/fittings/(?P<fittingnumber>[0-9]+)/$', fleetup.views.fleetup_fitting, name='auth_fleetup_fitting'),
-    url(r'^fleetup/doctrines/$', fleetup.views.fleetup_doctrines, name='auth_fleetup_doctrines'),
-    url(r'^fleetup/characters/$', fleetup.views.fleetup_characters, name='auth_fleetup_characters'),
-    url(r'^fleetup/doctrines/(?P<doctrinenumber>[0-9]+)/$', fleetup.views.fleetup_doctrine, name='auth_fleetup_doctrine'),
+    url(r'^fleetup/', include(fleetup.urls.urlpatterns)),
 
     # Authentication
     url(_(r'^login_user/'), authentication.views.login_user, name='auth_login_user'),
@@ -194,14 +189,16 @@ urlpatterns += i18n_patterns(
 
     # FleetActivityTracking (FAT)
     url(r'^fat/$', fleetactivitytracking.views.fatlink_view, name='auth_fatlink_view'),
-    url(r'^fat/statistics/$', fleetactivitytracking.views.fatlink_statistics_view, name='auth_fatlink_view_statistics'),
+    #corp fatstats
     url(r'^fat/statistics/corp/(\w+)$', fleetactivitytracking.views.fatlink_corponly_statistics_view, name='auth_fatlink_view_statistics_corponly'),
     url(r'^fat/statistics/corp/(?P<corpid>\w+)/(?P<year>[0-9]+)/$', fleetactivitytracking.views.fatlink_corponly_statistics_view,
         name='auth_fatlink_view_statistics_corponly'),
     url(r'^fat/statistics/corp/(?P<corpid>\w+)/(?P<year>[0-9]+)/(?P<month>[0-9]+)/', fleetactivitytracking.views.fatlink_statistics_corp_view,
         name='auth_fatlink_view_statistics_corp'),
+    #alliance fatstats
     url(r'^fat/statistics/(?P<year>[0-9]+)/(?P<month>[0-9]+)/$', fleetactivitytracking.views.fatlink_statistics_view,
         name='auth_fatlink_view_statistics_month'),
+    #personal fatstats
     url(r'^fat/user/statistics/$', fleetactivitytracking.views.fatlink_personal_statistics_view,
         name='auth_fatlink_view_personal_statistics'),
     url(r'^fat/user/statistics/(?P<year>[0-9]+)/$', fleetactivitytracking.views.fatlink_personal_statistics_view,
@@ -212,6 +209,7 @@ urlpatterns += i18n_patterns(
     url(r'^fat/user/(?P<char_id>[0-9]+)/statistics/(?P<year>[0-9]+)/(?P<month>[0-9]+)/$',
         fleetactivitytracking.views.fatlink_monthly_personal_statistics_view,
         name='auth_fatlink_view_user_statistics_month'),
+
     url(r'^fat/create/$', fleetactivitytracking.views.create_fatlink_view, name='auth_create_fatlink_view'),
     url(r'^fat/modify/$', fleetactivitytracking.views.modify_fatlink_view, name='auth_modify_fatlink_view'),
     url(r'^fat/modify/(?P<hash>[a-zA-Z0-9_-]+)/([a-z0-9_-]+)$',

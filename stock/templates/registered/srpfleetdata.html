@@ -68,11 +68,9 @@
                 {% csrf_token %}
                 <div class="alert alert-info" role="alert">
                     <div class="text-right">
-                        <b>{% trans "Total Losses:" %} {{ srpfleetrequests.count }}</b>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        <b>{% trans "Total ISK Cost:" %} {{ totalcost | intcomma }}</b>
+                        <b><span style="padding-right:2.5em">{% trans "Total Losses:" %} {{ srpfleetrequests.count }}</span></b>
+                        <b><span style="padding-right:2.5em">{% trans "Total ISK Cost:" %} {{ totalcost | intcomma }}</span></b>
                         {% if perms.auth.srp_management %}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             <button type="submit" title="Approve" class="btn btn-success" formaction="{% url 'auth_srp_request_approve' %}">
                                 <span class="glyphicon glyphicon-ok"></span>
                             </button>
@@ -146,11 +144,9 @@ ESC to cancel"
                 </table>
                 <div class="alert alert-info" role="alert">
                     <div class="text-right">
-                        <b>{% trans "Total Losses:" %} {{ srpfleetrequests.count }}</b>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        <b>{% trans "Total ISK Cost:" %} {{ totalcost | intcomma }}</b>
+                        <b><span style="padding-right:2.5em">{% trans "Total Losses:" %} {{ srpfleetrequests.count }}</span></b>
+                        <b><span style="padding-right:2.5em">{% trans "Total ISK Cost:" %} {{ totalcost | intcomma }}</span></b>
                         {% if perms.auth.srp_management %}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             <button type="submit" title="Approve" class="btn btn-success" formaction="{% url 'auth_srp_request_approve' %}">
                                 <span class="glyphicon glyphicon-ok"></span>
                             </button>
