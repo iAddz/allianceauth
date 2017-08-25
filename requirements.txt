@@ -10,6 +10,9 @@ requests-oauthlib
 sleekxmpp
 redis
 celery>=4.0.2
+pycrypto
+gunicorn
+functools32
 
 # Django Stuff #
 django>=1.10,<2.0

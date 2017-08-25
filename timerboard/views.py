@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import datetime
+import calendar
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -14,6 +15,9 @@ from authentication.models import AuthServicesInfo
 from eveonline.managers import EveManager
 from timerboard.form import TimerForm
 from timerboard.models import Timer
+
+from django.db import connections
+from django.conf import settings
 
 import logging
 
@@ -50,6 +54,20 @@ def timer_view(request):
     return render(request, 'registered/timermanagement.html', context=render_items)
 
 
+def rzr_add_timer(timer):
+    SQL_RZR_ADD_TIMER = r"INSERT INTO smf_rzr_structimers (name, endtime, typename, " \
+                       r"typename2, owner, size, deletedelay) " \
+                       r"VALUES(%s, %s, %s, %s, %s, %s, 2)"
+    objective = 1 if timer.objective == "Friendly" else 0
+    unixstart = calendar.timegm(timer.eve_time.utctimetuple())
+    location = "[" + timer.system + "] " + timer.planet_moon
+    
+    cursor = connections['smf'].cursor()
+    cursor.execute(SQL_RZR_ADD_TIMER,
+                           [timer.details, unixstart, 'General', timer.structure, objective, location])
+    return cursor.lastrowid
+
+
 @login_required
 @permission_required('auth.timer_management')
 def add_timer_view(request):
@@ -84,6 +102,7 @@ def add_timer_view(request):
             timer.eve_character = character
             timer.eve_corp = corporation
             timer.user = request.user
+            timer.rzr_timerid = rzr_add_timer(timer)
             timer.save()
             logger.info("Created new timer in %s at %s by user %s" % (timer.system, timer.eve_time, request.user))
             messages.success(request, _('Added new timer in %(system)s at %(time)s.') % {"system": timer.system, "time": timer.eve_time})
@@ -97,12 +116,24 @@ def add_timer_view(request):
     return render(request, 'registered/addtimer.html', context=render_items)
 
 
+def rzr_del_timer(timer):
+    SQL_RZR_DEL_OPTIMER = r"DELETE FROM smf_rzr_structimers WHERE id = %s"
+    cursor = connections['smf'].cursor()
+    
+    try:
+        cursor.execute(SQL_RZR_DEL_OPTIMER, [timer.rzr_timerid])
+    except:
+        pass
+
+
 @login_required
 @permission_required('auth.timer_management')
 def remove_timer(request, timer_id):
     logger.debug("remove_timer called by user %s for timer id %s" % (request.user, timer_id))
     if Timer.objects.filter(id=timer_id).exists():
         timer = Timer.objects.get(id=timer_id)
+        if timer.rzr_timerid != 0:
+            rzr_del_timer(timer)
         timer.delete()
         logger.debug("Deleting timer id %s by user %s" % (timer_id, request.user))
         messages.success(request, _('Deleted timer in %(system)s at %(time)s.') % {'system': timer.system,

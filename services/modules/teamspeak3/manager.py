@@ -54,7 +54,7 @@ class Teamspeak3Manager:
 
     @staticmethod
     def __generate_username(username, corp_ticker):
-        sanatized = "[" + corp_ticker + "]" + username
+        sanatized = "[" + corp_ticker + "] " + username
         return sanatized[:30]
 
     @staticmethod

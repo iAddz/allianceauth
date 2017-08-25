@@ -37,7 +37,7 @@ urlpatterns = [
     url(r'^sso/login$', authentication.views.sso_login, name='auth_sso_login'),
 
     # Index
-    url(_(r'^$'), authentication.views.index_view, name='auth_index'),
+    url(_(r'^$'), authentication.views.login_user, name='auth_index'),
 
     # Authentication
     url(r'^logout_user/', authentication.views.logout_user, name='auth_logout_user'),
@@ -84,6 +84,7 @@ urlpatterns += i18n_patterns(
 
     # Authentication
     url(_(r'^login_user/'), authentication.views.login_user, name='auth_login_user'),
+    url(_(r'^login_frame/'), authentication.views.login_frame, name='auth_login_frame'),
     url(_(r'^register_user/'), authentication.views.register_user_view, name='auth_register_user'),
 
     url(_(r'^user/password/$'), django.contrib.auth.views.password_change, name='password_change'),

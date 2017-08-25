@@ -19,6 +19,7 @@ class optimer(models.Model):
     fc = models.CharField(max_length=254, default="")
     post_time = models.DateTimeField(default=timezone.now)
     eve_character = models.ForeignKey(EveCharacter)
+    rzr_optimer_id = models.IntegerField(default=0)
 
     def __str__(self):
         output = self.operation_name

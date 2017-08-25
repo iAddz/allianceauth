@@ -6,9 +6,14 @@ from datetime import datetime
 import hashlib
 import logging
 import re
+from base64 import b64encode
+from Crypto.Cipher import AES
+import os
 
 from django.db import connections
 from django.conf import settings
+
+from eveonline.models import EveCharacter, EveApiKeyPair #RZR Func
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +48,129 @@ class SmfManager:
 
     SQL_ADD_USER_AVATAR = r"UPDATE smf_members SET avatar = %s WHERE id_member = %s"
 
+    SQL_RZR_ADD_CHAR = r"INSERT INTO smf_rzr_api_member (id_member, memberName, id_corp, id_eve, KeyID, vCode, " \
+                       r"api_expire, alt_of, api_state, id_ts3, id_jabber, is_special) " \
+                       r"VALUES(%s, %s, %s, %s, %s, %s, %s, %s, 1, 0, 0, 0)"
+
+    SQL_RZR_DEL_CHAR = r"DELETE FROM smf_rzr_api_member WHERE id_member = %s"
+    SQL_RZR_DEL_CHAR2 = r"DELETE FROM smf_rzr_api_member WHERE id_eve = %s"
+    
+    SQL_RZR_DEL_ALTS = r"DELETE FROM smf_rzr_api_member WHERE alt_of IN " \
+                       r"(select * from(SELECT id FROM smf_rzr_api_member WHERE id_member= %s) as d)" #Nested again to avoid MySQL Error 1093
+
+    SQL_RZR_GET_MAINID = r"SELECT id FROM smf_rzr_api_member WHERE id_eve= %s"
+
+    @classmethod
+    def rzr_getvars(cls, charid, alt):
+        character = EveCharacter.objects.get(character_id=charid)
+        apikey = EveApiKeyPair.objects.get(api_id=character.api_id)
+        evcode = cls.rzr_encrypt(apikey.api_id, apikey.api_key, charid, settings.RZR_SECRET)
+        api_expire = (cls.get_current_utc_date())+5259490
+        memberid = 0
+        if alt==0:
+            memberid = cls.get_user_id("[" + character.corporation_ticker + "] " + character.character_name)
+        
+        results = { 'charname': character.character_name, 'apikey': apikey.api_id, 'evcode': evcode, 
+                    'apiexpire': api_expire, 'memberid': memberid, 'corpid': character.corporation_id }
+        return results
+
+    @classmethod
+    def rzr_getsmfmain_id(cls, charid):
+        logger.debug("Getting mainid of evechar %s" % charid)
+        
+        cursor = connections['smf'].cursor()
+        try:
+            cursor.execute(cls.SQL_RZR_GET_MAINID, [charid])
+            row = cursor.fetchone()
+            return row[0]
+        except:
+            logger.warn("Unable to get RZR smf mainid for evechar %s" % charid)
+            pass
+
+    @classmethod
+    def rzr_encrypt(cls, apikey, vcode, charid, password):
+        salt = hashlib.sha1((apikey + charid).encode('utf-8')).hexdigest()
+        key = hashlib.sha256(salt + password).digest()
+        iv = os.urandom(16)
+        base64_iv = b64encode(iv)
+        concatkey = vcode + hashlib.md5(vcode).hexdigest()
+        AES.key_size=128
+        encryptor=AES.new(key=key,mode=AES.MODE_CBC,IV=iv)
+        encoded = b64encode(encryptor.encrypt(concatkey))
+        return base64_iv + encoded
+
+    @classmethod
+    def rzr_add_all_chars(cls, maincharid):
+        user_id = EveCharacter.objects.get(character_id=maincharid).user.id
+        main_alliance = EveCharacter.objects.get(character_id=maincharid).alliance_id
+        alts = EveCharacter.objects.filter(user_id=user_id, alliance_id=main_alliance).exclude(character_id=maincharid)
+        
+        member_id = cls.rzr_add_char(maincharid)
+        for alt in alts:
+            cls.rzr_add_char(alt.character_id, member_id)
+
+    @classmethod
+    def rzr_add_char(cls, charid, alt=0):
+        rzrvars = cls.rzr_getvars(charid, alt)
+        logger.debug("Creating SMF RZR Member %s" % rzrvars['charname'])
+        
+        cursor = connections['smf'].cursor()
+        try:
+            cursor.execute(cls.SQL_RZR_ADD_CHAR,
+                           [rzrvars['memberid'], rzrvars['charname'], rzrvars['corpid'], charid, 
+                           rzrvars['apikey'], rzrvars['evcode'], rzrvars['apiexpire'], alt])
+            logger.debug("Created RZR Member %s" % rzrvars['charname'])
+            if alt==0:
+                return cursor.lastrowid
+        except:
+            logger.warn("Unable to add RZR smf user %s" % rzrvars['charname'])
+            pass
+
+    @classmethod
+    def rzr_update_char(cls, charid, alt=0):
+        rzrvars = cls.rzr_getvars(charid, alt)
+        logger.debug("Update SMF RZR Member %s" % rzrvars['charname'])
+        
+        cursor = connections['smf'].cursor()
+        try:
+            cursor.execute(cls.SQL_RZR_UPDATE_CHAR,
+                           [rzrvars['charname'], rzrvars['corpid'], charid, rzrvars['apikey'], 
+                            rzrvars['evcode'], rzrvars['apiexpire'], alt, charid])
+            logger.debug("Updated RZR Member %s" % rzrvars['charname'])
+        except:
+            logger.warn("Unable to Update RZR smf user %s" % rzrvars['charname'])
+            pass
+
+    @classmethod
+    def rzr_delete_all_chars(cls, username):
+        logger.debug("Deleting SMF RZR Member %s" % username)
+        smfid = cls.get_user_id(username)
+        cursor = connections['smf'].cursor()
+        try:
+            cursor.execute(cls.SQL_RZR_DEL_ALTS, [smfid])
+            cursor.execute(cls.SQL_RZR_DEL_CHAR, [smfid])
+            logger.debug("Deleted RZR Member %s" % username)
+        except:
+            logger.warn("Unable to Delete RZR smf user %s" % username)
+            pass
+
+    @classmethod
+    def rzr_del_char(cls, charid):
+        logger.debug("Deleting SMF RZR char %s" % charid)
+        cursor = connections['smf'].cursor()
+        try:
+            cursor.execute(cls.SQL_RZR_DEL_CHAR2,
+                           [charid])
+            logger.debug("Deleted RZR char %s" % charid)
+        except:
+            logger.warn("Unable to Delete RZR smf char %s" % charid)
+            pass
+
     @staticmethod
     def _sanitize_groupname(name):
-        name = name.strip(' _')
-        return re.sub('[^\w.-]', '', name)
+        #name = name.strip(' _')
+        #return re.sub('[^\w.-]', '', name)
+        return name
 
     @staticmethod
     def generate_random_pass():
@@ -54,7 +178,7 @@ class SmfManager:
 
     @staticmethod
     def gen_hash(username_clean, passwd):
-        return hashlib.sha1((username_clean + passwd).encode('utf-8')).hexdigest()
+        return hashlib.sha1((username_clean.lower() + passwd).encode('utf-8')).hexdigest()
 
     @staticmethod
     def santatize_username(username):
@@ -89,7 +213,7 @@ class SmfManager:
     def check_user(cls, username):
         logger.debug("Checking smf username %s" % username)
         cursor = connections['smf'].cursor()
-        cursor.execute(cls.SQL_USER_ID_FROM_USERNAME, [cls.santatize_username(username)])
+        cursor.execute(cls.SQL_USER_ID_FROM_USERNAME, [username])
         row = cursor.fetchone()
         if row:
             logger.debug("Found user %s on smf" % username)
@@ -144,15 +268,16 @@ class SmfManager:
         logger.debug("Adding smf user with member_name %s, email_address %s, characterid %s" % (
             username, email_address, characterid))
         cursor = connections['smf'].cursor()
-        username_clean = cls.santatize_username(username)
+        username_clean = username #cls.santatize_username(username) #RZR Naming Conventions
         passwd = cls.generate_random_pass()
         pwhash = cls.gen_hash(username_clean, passwd)
         logger.debug("Proceeding to add smf user %s and pwhash starting with %s" % (username, pwhash[0:5]))
         register_date = cls.get_current_utc_date()
         # check if the username was simply revoked
-        if cls.check_user(username) is True:
+        if cls.check_user(username_clean) is True:
             logger.warn("Unable to add smf user with username %s - already exists. Updating user instead." % username)
             cls.__update_user_info(username_clean, email_address, pwhash)
+            cls.rzr_add_all_chars(characterid)
         else:
             try:
                 cursor.execute(cls.SQL_ADD_USER,
@@ -160,6 +285,7 @@ class SmfManager:
                 cls.add_avatar(username_clean, characterid)
                 logger.info("Added smf member_name %s" % username_clean)
                 cls.update_groups(username_clean, groups)
+                cls.rzr_add_all_chars(characterid)
             except:
                 logger.warn("Unable to add smf user %s" % username_clean)
                 pass
@@ -234,7 +360,6 @@ class SmfManager:
     def disable_user(cls, username):
         logger.debug("Disabling smf user %s" % username)
         cursor = connections['smf'].cursor()
-
         password = cls.generate_random_pass()
         revoke_email = "revoked@" + settings.DOMAIN
         try:
@@ -242,6 +367,7 @@ class SmfManager:
             cursor.execute(cls.SQL_DIS_USER, [revoke_email, pwhash, username])
             cls.get_user_id(username)
             cls.update_groups(username, [])
+            cls.rzr_delete_all_chars(username)
             logger.info("Disabled smf user %s" % username)
             return True
         except TypeError:
@@ -255,7 +381,7 @@ class SmfManager:
         if not password:
             password = cls.generate_random_pass()
         if cls.check_user(username):
-            username_clean = cls.santatize_username(username)
+            username_clean = username #cls.santatize_username(username) #RZR Naming convention
             pwhash = cls.gen_hash(username_clean, password)
             logger.debug(
                 "Proceeding to update smf user %s password with pwhash starting with %s" % (username, pwhash[0:5]))

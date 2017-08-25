@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.clickjacking import xframe_options_exempt
 from eveonline.managers import EveManager
 from eveonline.models import EveCharacter
 from authentication.models import AuthServicesInfo
@@ -45,6 +46,11 @@ def login_user(request):
         form = LoginForm()
 
     return render(request, 'public/login.html', context={'form': form})
+
+@xframe_options_exempt
+def login_frame(request):
+    form = LoginForm()
+    return render(request, 'public/login2.html', context={'form': form})
 
 
 def logout_user(request):

@@ -332,7 +332,7 @@ def create_fatlink_view(request):
             else:
                 form = FatlinkForm()
                 context = {'form': form, 'badrequest': True}
-                return render(request, 'registered/fatlinkformatter.html', context=context)
+                return render(request, 'fleetactivitytracking/fatlinkformatter.html', context=context)
             return redirect('auth_fatlink_view')
 
     else:

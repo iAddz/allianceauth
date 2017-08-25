@@ -23,6 +23,7 @@ class Timer(models.Model):
     eve_corp = models.ForeignKey(EveCorporationInfo)
     corp_timer = models.BooleanField(default=False)
     user = models.ForeignKey(User)
+    rzr_timerid = models.IntegerField(default=0)
 
     def __str__(self):
         return str(self.system) + ' ' + str(self.objective)

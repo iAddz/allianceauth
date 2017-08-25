@@ -1,0 +1,65 @@
+{% load staticfiles %}
+{% load bootstrap %}
+{% load i18n %}
+<html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>{{ SITE_NAME }} - {% trans "Login" %}</title>
+
+    {% include 'bundles/bootstrap-css.html' %}
+    {% include 'bundles/fontawesome.html' %}
+    <style>
+        .panel-transparent {
+            background: rgba(48, 48, 48, 0.7);
+            color: #ffffff;
+        }
+
+        .panel-body {
+
+        }
+     
+    </style>
+</head>
+<body>
+<div class="panel panel-default panel-transparent">
+    <div class="panel-body">
+        <form class="form-signin" role="form" action="{% url 'auth_login_user' %}" method="POST">
+            {% csrf_token %}
+            <h2 class="form-signin-heading text-center">{% trans "Please sign in" %}</h2>
+            {{ form|bootstrap }}
+            <input type="hidden" name="next" value="{{ request.GET.next }}" />
+            <div class="row">
+            <div class="col-md-12">
+                <button class="btn btn-lg btn-primary btn-block" type="submit">{% trans "Sign in" %}</button>
+            </div>
+            </div>
+        </form>
+        <div class="row">
+            <div class="col-md-6">
+                <a href="{% url 'password_reset' %}" class="btn btn-lg btn-danger btn-block">{% trans "Reset" %}</a>
+            </div>
+            <div class="col-md-6">
+                <a href="{% url 'auth_register_user' %}" class="btn btn-success btn-block btn-lg">{% trans "Register" %}</a>
+            </div>
+        </div>
+        <br>
+        <div class="col-md-12">
+            <p style="text-align:center">
+                <a href="{% url 'auth_sso_login' %}">
+                    <img src="{% static 'img/sso/EVE_SSO_Login_Buttons_Large_Black.png' %}" border=0>
+                </a>
+            </p>
+        </div>              
+    </div>
+</div>
+
+{% include 'bundles/bootstrap-js.html' %}
+</body>
+</html>

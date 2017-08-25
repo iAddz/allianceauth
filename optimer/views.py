@@ -11,6 +11,10 @@ from eveonline.managers import EveManager
 from optimer.form import opForm
 from optimer.models import optimer
 from authentication.decorators import members_and_blues
+import calendar
+from datetime import datetime, timedelta
+from django.db import connections
+from django.conf import settings
 
 import logging
 
@@ -29,6 +33,20 @@ def optimer_view(request):
                         start__lt=timezone.now()).order_by('-start')}
 
     return render(request, 'registered/operationmanagement.html', context=render_items)
+
+
+def rzr_add_optimer(op):
+    SQL_RZR_ADD_OPTIMER = r"INSERT INTO smf_rzr_optimers (name, endtime, startsys, ships, fc, deleteDelay, typename, " \
+                       r"bcast_enabled, bcast_time, ts3op_enabled, url) " \
+                       r"VALUES(%s, %s, %s, %s, %s, 2, 'General', 0, 15, 0, '')"
+                       
+                       
+    unixstart = calendar.timegm(op.start.utctimetuple())
+    cursor = connections['smf'].cursor()
+    
+    cursor.execute(SQL_RZR_ADD_OPTIMER,
+                           [op.operation_name, unixstart, op.system, op.doctrine, op.fc])
+    return cursor.lastrowid
 
 
 @login_required
@@ -54,6 +72,7 @@ def add_optimer_view(request):
             op.fc = form.cleaned_data['fc']
             op.create_time = post_time
             op.eve_character = character
+            op.rzr_optimer_id = rzr_add_optimer(op)
             op.save()
             logger.info("User %s created op timer with name %s" % (request.user, op.operation_name))
             messages.success(request, _('Created operation timer for %(opname)s.') % {"opname": op.operation_name})
@@ -67,12 +86,23 @@ def add_optimer_view(request):
     return render(request, 'registered/addoperation.html', context=render_items)
 
 
+def rzr_del_optimer(op):
+    SQL_RZR_DEL_OPTIMER = r"DELETE FROM smf_rzr_optimers WHERE id = %s"
+    cursor = connections['smf'].cursor()
+    
+    try:
+        cursor.execute(SQL_RZR_DEL_OPTIMER, [op.rzr_optimer_id])
+    except:
+        pass
+
 @login_required
 @permission_required('auth.optimer_management')
 def remove_optimer(request, optimer_id):
     logger.debug("remove_optimer called by user %s for operation id %s" % (request.user, optimer_id))
     if optimer.objects.filter(id=optimer_id).exists():
         op = optimer.objects.get(id=optimer_id)
+        if op.rzr_optimer_id != 0:
+            rzr_del_optimer(op)
         op.delete()
         logger.info("Deleting optimer id %s by user %s" % (optimer_id, request.user))
         messages.success(request, _('Removed operation timer for %(opname)s.') % {"opname": op.operation_name})
