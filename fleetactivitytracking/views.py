@@ -14,16 +14,15 @@ from eveonline.managers import EveManager
 from authentication.models import AuthServicesInfo
 from fleetactivitytracking.forms import FatlinkForm
 from fleetactivitytracking.models import Fatlink, Fat
-
 from esi.decorators import token_required
-
 from slugify import slugify
-
 import string
 import random
 import datetime
-
 import logging
+import os
+
+SWAGGER_SPEC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swagger.json')
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +55,14 @@ class CorpStat(object):
             fatlink__fatdatetime__gte=start_of_month).filter(fatlink__fatdatetime__lte=start_of_next_month).count()
         self.blue = self.corp.is_blue
 
+    @property
     def avg_fat(self):
-        return "%.2f" % (float(self.n_fats) / float(self.corp.member_count))
-    
+        try:
+            return "%.2f" % (float(self.n_fats) / float(self.corp.member_count))
+        except ZeroDivisionError:
+            return "%.2f" % 0
+
+
 class MemberStat(object):
     def __init__(self, member, start_of_month, start_of_next_month, mainchid=None):
         if mainchid:
@@ -72,9 +76,13 @@ class MemberStat(object):
         self.n_chars = nchars;
         self.n_fats = Fat.objects.filter(user_id=member['user_id']).filter(
             fatlink__fatdatetime__gte=start_of_month).filter(fatlink__fatdatetime__lte=start_of_next_month).count()
-        
+
+    @property
     def avg_fat(self):
-        return "%.2f" % (float(self.n_fats) / float(self.n_chars))
+        try:
+            return "%.2f" % (float(self.n_fats) / float(self.n_chars))
+        except ZeroDivisionError:
+            return "%.2f" % 0
 
 
 def first_day_of_next_month(year, month):
@@ -144,13 +152,13 @@ def fatlink_statistics_corp_view(request, corpid, year=None, month=None):
     stat_list = [fat_stats[x] for x in fat_stats]
     stat_list.sort(key=lambda stat: stat.mainchar.character_name)
     stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.n_chars), reverse=True)
+    #stat_list.sort(key=lambda stat: (stat.n_fats, stat.avg_fat), reverse=True)
+    
+    context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
+           'previous_month': start_of_previous_month, 'corpid': corpid}
 
     if datetime.datetime.now() > start_of_next_month:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month, 'next_month': start_of_next_month, 'corpid': corpid}
-    else:
-        context = {'fatStats': stat_list, 'month': start_of_month.strftime("%B"), 'year': year,
-                   'previous_month': start_of_previous_month, 'corpid': corpid}
+        context.update({'next_month': start_of_next_month})
 
     return render(request, 'fleetactivitytracking/fatlinkstatisticscorpview.html', context=context)
 
@@ -217,7 +225,7 @@ def fatlink_statistics_view(request, year, month):
     # collect and sort stats
     stat_list = [fat_stats[x] for x in fat_stats]
     stat_list.sort(key=lambda stat: stat.corp.corporation_name)
-    stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.corp.member_count), reverse=True)
+    stat_list.sort(key=lambda stat: (stat.n_fats, stat.avg_fat), reverse=True)
 
     if datetime.datetime.now() > start_of_next_month:
         context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
@@ -304,7 +312,7 @@ def click_fatlink_view(request, token, hash, fatname):
 
             if character:
                 # get data
-                c = token.get_esi_client(Location='v1', Universe='v2')
+                c = token.get_esi_client(spec_file=SWAGGER_SPEC_PATH)
                 location = c.Location.get_characters_character_id_location(character_id=token.character_id).result()
                 ship = c.Location.get_characters_character_id_ship(character_id=token.character_id).result()
                 location['solar_system_name'] = \
@@ -314,7 +322,6 @@ def click_fatlink_view(request, token, hash, fatname):
                     location['station_name'] = \
                         c.Universe.get_universe_stations_station_id(station_id=location['station_id']).result()['name']
                 elif location['structure_id']:
-                    c = token.get_esi_client(Universe='v1')
                     location['station_name'] = \
                         c.Universe.get_universe_structures_structure_id(structure_id=location['structure_id']).result()[
                             'name']

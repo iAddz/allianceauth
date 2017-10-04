@@ -13,6 +13,9 @@ from corputils.models import CorpStats
 from esi.decorators import token_required
 from bravado.exception import HTTPError
 from django.db import connection
+import os
+
+SWAGGER_SPEC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swagger.json')
 
 MEMBERS_PER_PAGE = int(getattr(settings, 'CORPSTATS_MEMBERS_PER_PAGE', 20))
 
@@ -42,9 +45,8 @@ def corpstats_add(request, token):
         if EveCharacter.objects.filter(character_id=token.character_id).exists():
             corp_id = EveCharacter.objects.get(character_id=token.character_id).corporation_id
         else:
-            corp_id = \
-                token.get_esi_client(Character='v4').Character.get_characters_character_id(character_id=token.character_id).result()[
-                    'corporation_id']
+            corp_id = token.get_esi_client(spec_file=SWAGGER_SPEC_PATH).Character.get_characters_character_id(
+                character_id=token.character_id).result()['corporation_id']
         corp = EveCorporationInfo.objects.get(corporation_id=corp_id)
         cs = CorpStats.objects.create(token=token, corp=corp)
         try:

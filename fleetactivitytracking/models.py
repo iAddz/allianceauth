@@ -51,4 +51,4 @@ class Fat(models.Model):
             output = "Fat-link for %s" % self.character.character_name
         except:
             output = 'Fat-link for DELETED CHAR. User: %s' % self.user.username
-        return output.encode('utf-8')
+        return output
