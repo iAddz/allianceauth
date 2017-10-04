@@ -3,9 +3,11 @@ from __future__ import unicode_literals
 import logging
 
 from django.conf import settings
+from django.db import connections
 
 from services.modules.teamspeak3.util.ts3 import TS3Server, TeamspeakError
 from .models import TSgroup
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,9 @@ class Teamspeak3Manager:
             if not e.code == '1281':
                 raise e
         return None
+    
+    def _get_clientlist():
+        return self.server.send_command('clientlist')
 
     def _group_id_by_name(self, groupname):
         logger.debug("Looking for group %s on TS3 server." % groupname)
@@ -311,3 +316,54 @@ class Teamspeak3Manager:
             for g in remgroups:
                 logger.info("Removing Teamspeak user %s from group %s" % (userid, g))
                 self._remove_user_from_group(userid, g)
+
+    def update_uid(self, old_uid, half_new_uid, ticker, blue):
+        cid = self._get_userid(old_uid)
+        if blue:
+            new_uid = self.__generate_username_blue(half_new_uid, ticker)
+        else:
+            new_uid = self.__generate_username(half_new_uid, ticker)
+        username_clean = self.__santatize_username(new_uid)
+        SQL_UPDATE_UID = r'UPDATE custom_fields SET value = %s WHERE client_id = %s'
+        try:
+            cursor = connections['ts3'].cursor()
+            cursor.execute(SQL_UPDATE_UID, [username_clean, cid])
+            logger.info("Updated ts3 client id %s to new uid %s" % (cid, username_clean))
+            return username_clean
+        except:
+            logger.exception("Unable to update ts3 client id %s to new uid %s" % (cid, username_clean))
+            return False
+
+    @staticmethod
+    def get_invalid_users():
+        logger.debug("Kicking all TS3 users with invalid nicknames")
+        SQL_GET_INVALID_NAMES_CID = r"SELECT t2.client_id, t2.value, t3.client_nickname " \
+                                    r"FROM alliance_auth.teamspeak3_teamspeak3user t1 " \
+                                    r"INNER JOIN alliance_teamspeak.custom_fields t2 ON t1.uid = t2.value " \
+                                    r"INNER JOIN alliance_teamspeak.clients t3 ON t2.client_id = t3.client_id " \
+                                    r"WHERE t2.value IN " \
+                                    r"(select value from alliance_teamspeak.custom_fields where client_id in " \
+                                    r"(select client_id from alliance_teamspeak.clients where client_nickname not in " \
+                                    r"(select value from alliance_teamspeak.custom_fields)))"
+        try:
+            cursor = connections['ts3'].cursor()
+            cursor.execute(SQL_GET_INVALID_NAMES_CID)
+            return cursor.fetchall()
+        except:
+            logger.exception("Unable to execute get_invalid_users SQL")
+           
+
+    def kick_users(self, invalid_users):
+        logger.debug("Kicking invalid nicknames")
+        clients = self.server.send_command('clientlist')
+        for user in invalid_users:
+            m = re.search(r'[1]+$', user[2]) #Make sure nickname doesn't have 1's added from dual connect/timeout
+            if m is None:
+                if "Addz" not in user[1]:
+                    logger.debug("kick %s" % user[0])
+                    for client in clients:
+                        logger.debug("checking id: %s" % client['keys']['client_database_id'])
+                        if int(client['keys']['client_database_id']) == int(user[0]):
+                            kickmsg = "Invalid nickname. Correct nickname: " + user[1]
+                            self.server.send_command('clientkick', {'clid': client['keys']['clid'], 'reasonid': 5,
+                                                                'reasonmsg': kickmsg})

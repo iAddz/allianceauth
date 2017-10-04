@@ -6,6 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 from eveonline.forms import UpdateKeyForm
 from eveonline.managers import EveManager
 from authentication.managers import AuthServicesInfoManager
+from services.tasks import update_services
 from services.managers.eve_api_manager import EveApiManager
 from eveonline.models import EveApiKeyPair, EveCharacter
 from authentication.models import AuthServicesInfo
@@ -153,6 +154,7 @@ def main_character_change(request, char_id):
         AuthServicesInfoManager.update_main_char_id(char_id, request.user)
         messages.success(request, _('Changed main character ID to %(charid)s') % {"charid": char_id})
         set_state(request.user)
+        update_services(request.user)
         return redirect("auth_dashboard")
     messages.error(request, _('Failed to change main character - selected character is not owned by your account.'))
     return redirect("auth_characters")

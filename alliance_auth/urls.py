@@ -1,5 +1,5 @@
 from django.conf.urls import include, url
-
+from django.http import HttpResponse
 from django.conf.urls.i18n import i18n_patterns
 from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
@@ -11,13 +11,14 @@ import groupmanagement.views
 import optimer.views
 import timerboard.views
 import fleetactivitytracking.views
-import fleetup.urls
+import fleetup.views
 import srp.views
 import notifications.views
 import hrapplications.views
 import corputils.urls
 import esi.urls
 import permissions_tool.urls
+import finance.views
 from alliance_auth import NAME
 
 admin.site.site_header = NAME
@@ -28,16 +29,17 @@ from alliance_auth.hooks import get_hooks
 urlpatterns = [
     # Locale
     url(r'^i18n/', include('django.conf.urls.i18n')),
+    
+    #url(r'^run/', fleetactivitytracking.views.task, name='run'),
+    
+    url(r'^robots.txt$', lambda r: HttpResponse("User-agent: *\nDisallow: /", content_type="text/plain")),
 
     # Admin urls
     url(r'^admin/', include(admin.site.urls)),
-
-    # SSO
-    url(r'^sso/', include(esi.urls, namespace='esi')),
-    url(r'^sso/login$', authentication.views.sso_login, name='auth_sso_login'),
-
-    # Index
-    url(_(r'^$'), authentication.views.index_view, name='auth_index'),
+    
+    # Index redirect
+    url(_(r'^$'), authentication.views.index_redir, name='auth_index'),
+    #url(_(r'^$'), authentication.views.index_view, name='auth_index'),
 
     # Authentication
     url(r'^logout_user/', authentication.views.logout_user, name='auth_logout_user'),
@@ -74,8 +76,17 @@ urlpatterns = [
 # User viewed/translated URLS
 urlpatterns += i18n_patterns(
 
+    # SSO
+    url(r'^sso/', include(esi.urls, namespace='esi')),
+    url(r'^sso/login$', authentication.views.sso_login, name='auth_sso_login'),
+
     # Fleetup
-    url(r'^fleetup/', include(fleetup.urls.urlpatterns)),
+    url(r'^fleetup/$', fleetup.views.fleetup_view, name='auth_fleetup_view'),
+    url(r'^fleetup/fittings/$', fleetup.views.fleetup_fittings, name='auth_fleetup_fittings'),
+    url(r'^fleetup/fittings/(?P<fittingnumber>[0-9]+)/$', fleetup.views.fleetup_fitting, name='auth_fleetup_fitting'),
+    url(r'^fleetup/doctrines/$', fleetup.views.fleetup_doctrines, name='auth_fleetup_doctrines'),
+    url(r'^fleetup/characters/$', fleetup.views.fleetup_characters, name='auth_fleetup_characters'),
+    url(r'^fleetup/doctrines/(?P<doctrinenumber>[0-9]+)/$', fleetup.views.fleetup_doctrine, name='auth_fleetup_doctrine'),
 
     # Authentication
     url(_(r'^login_user/'), authentication.views.login_user, name='auth_login_user'),
@@ -189,16 +200,14 @@ urlpatterns += i18n_patterns(
 
     # FleetActivityTracking (FAT)
     url(r'^fat/$', fleetactivitytracking.views.fatlink_view, name='auth_fatlink_view'),
-    #corp fatstats
+    url(r'^fat/statistics/$', fleetactivitytracking.views.fatlink_statistics_view, name='auth_fatlink_view_statistics'),
     url(r'^fat/statistics/corp/(\w+)$', fleetactivitytracking.views.fatlink_corponly_statistics_view, name='auth_fatlink_view_statistics_corponly'),
     url(r'^fat/statistics/corp/(?P<corpid>\w+)/(?P<year>[0-9]+)/$', fleetactivitytracking.views.fatlink_corponly_statistics_view,
         name='auth_fatlink_view_statistics_corponly'),
     url(r'^fat/statistics/corp/(?P<corpid>\w+)/(?P<year>[0-9]+)/(?P<month>[0-9]+)/', fleetactivitytracking.views.fatlink_statistics_corp_view,
         name='auth_fatlink_view_statistics_corp'),
-    #alliance fatstats
     url(r'^fat/statistics/(?P<year>[0-9]+)/(?P<month>[0-9]+)/$', fleetactivitytracking.views.fatlink_statistics_view,
         name='auth_fatlink_view_statistics_month'),
-    #personal fatstats
     url(r'^fat/user/statistics/$', fleetactivitytracking.views.fatlink_personal_statistics_view,
         name='auth_fatlink_view_personal_statistics'),
     url(r'^fat/user/statistics/(?P<year>[0-9]+)/$', fleetactivitytracking.views.fatlink_personal_statistics_view,
@@ -209,7 +218,6 @@ urlpatterns += i18n_patterns(
     url(r'^fat/user/(?P<char_id>[0-9]+)/statistics/(?P<year>[0-9]+)/(?P<month>[0-9]+)/$',
         fleetactivitytracking.views.fatlink_monthly_personal_statistics_view,
         name='auth_fatlink_view_user_statistics_month'),
-
     url(r'^fat/create/$', fleetactivitytracking.views.create_fatlink_view, name='auth_create_fatlink_view'),
     url(r'^fat/modify/$', fleetactivitytracking.views.modify_fatlink_view, name='auth_modify_fatlink_view'),
     url(r'^fat/modify/(?P<hash>[a-zA-Z0-9_-]+)/([a-z0-9_-]+)$',
@@ -218,6 +226,13 @@ urlpatterns += i18n_patterns(
     url(r'^fat/link/(?P<hash>[a-zA-Z0-9]+)/(?P<fatname>[a-z0-9_-]+)/$',
         fleetactivitytracking.views.click_fatlink_view),
 
+    #Finance
+    url(r'^finance/$', finance.views.finance_view, name='view_finances'),
+    url(r'^finance/(?P<corp_id>(\d)*)/$', finance.views.finance_view, name='view_finances'),
+    url(r'^finance/add/$', finance.views.finance_add, name='add_finances'),
+    url(r'^finance/(?P<corp_id>\w+)/(?P<year>[0-9]+)/(?P<month>[0-9]+)/', finance.views.finance_view,
+        name='view_finances'),
+    
     url(r'^permissions/', include(permissions_tool.urls))
 )
 

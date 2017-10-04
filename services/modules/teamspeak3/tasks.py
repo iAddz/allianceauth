@@ -9,7 +9,10 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from notifications import notify
 
+from eveonline.models import EveAllianceInfo
+from eveonline.managers import EveManager
 from authentication.models import AuthServicesInfo
+from authentication.states import BLUE_STATE
 from .util.ts3 import TeamspeakError
 from .manager import Teamspeak3Manager
 from .models import AuthTS, TSgroup, UserTSgroup, Teamspeak3User
@@ -90,3 +93,47 @@ class Teamspeak3Tasks:
         logger.debug("Updating ALL teamspeak3 groups")
         for user in Teamspeak3User.objects.exclude(uid__exact=''):
             Teamspeak3Tasks.update_groups.delay(user.user_id)
+            
+    @staticmethod
+    @app.task(name="teamspeak3.update_all_uids")
+    def update_all_uids():
+        logger.debug("Updating ALL teamspeak3 groups")
+        for user in Teamspeak3User.objects.exclude(uid__exact=''):
+            Teamspeak3Tasks.update_uid.delay(user.user_id)
+            
+    @staticmethod
+    @app.task(bind=True, name="teamspeak3.update_uid")
+    def update_uid(self, pk):
+        user = User.objects.get(pk=pk)
+        if Teamspeak3Tasks.has_account(user):
+            authinfo = AuthServicesInfo.objects.get(user=user)
+            character = EveManager.get_main_character(user)
+            logger.error("ADDZERROR: %s" % character)
+            ticker = character.corporation_ticker
+            blue = False
+            if authinfo.state == BLUE_STATE and character.alliance_id != '':
+                blue = True
+                alliance = EveAllianceInfo.objects.get(alliance_id=character.alliance_id)
+                ticker = alliance.alliance_ticker
+            try:
+                with Teamspeak3Manager() as ts3man:
+                    username = ts3man.update_uid(user.teamspeak3.uid, character.character_name, ticker, blue)
+                    user.teamspeak3.uid = username
+                    user.teamspeak3.save()
+                logger.debug("Updated user %s teamspeak3 uid." % user)
+            except TeamspeakError as e:
+                logger.error("Error occured while syncing TS uid for %s: %s" % (user, str(e)))
+                raise self.retry(countdown=60*10)
+        else:
+            logger.debug("User does not have a teamspeak3 account")
+
+    @staticmethod
+    @app.task(name="teamspeak3.kick_all_invalid_names")
+    def kick_all_invalid_names():
+        logger.debug("Getting all invalid names from TS3 clients")
+        invalid_users = Teamspeak3Manager.get_invalid_users()
+        with Teamspeak3Manager() as ts3man:
+            try:
+                ts3man.kick_users(invalid_users)
+            except:
+                pass

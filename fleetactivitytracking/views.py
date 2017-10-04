@@ -8,7 +8,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Q
 from eveonline.models import EveCharacter
 from eveonline.models import EveCorporationInfo
 from eveonline.managers import EveManager
@@ -59,8 +58,7 @@ class CorpStat(object):
 
     def avg_fat(self):
         return "%.2f" % (float(self.n_fats) / float(self.corp.member_count))
-  
-  
+    
 class MemberStat(object):
     def __init__(self, member, start_of_month, start_of_next_month, mainchid=None):
         if mainchid:
@@ -68,10 +66,10 @@ class MemberStat(object):
         else:
             self.mainchid = AuthServicesInfo.objects.get(user_id=member['user_id']).main_char_id
         self.mainchar = EveCharacter.objects.get(character_id=self.mainchid)
-        nchars = 0
+        nchars = 0;
         for alliance_id in settings.STR_ALLIANCE_IDS:
             nchars += EveCharacter.objects.filter(user_id=member['user_id']).filter(alliance_id=alliance_id).count()
-        self.n_chars = nchars
+        self.n_chars = nchars;
         self.n_fats = Fat.objects.filter(user_id=member['user_id']).filter(
             fatlink__fatdatetime__gte=start_of_month).filter(fatlink__fatdatetime__lte=start_of_next_month).count()
         
@@ -187,7 +185,7 @@ def fatlink_corponly_statistics_view(request, corpid, year=datetime.date.today()
 
 @login_required
 @permission_required('auth.fleetactivitytracking_statistics')
-def fatlink_statistics_view(request, year=datetime.date.today().year, month=datetime.date.today().month):
+def fatlink_statistics_view(request, year, month):
     year = int(year)
     month = int(month)
     start_of_month = datetime.datetime(year, month, 1)
@@ -197,29 +195,36 @@ def fatlink_statistics_view(request, year=datetime.date.today().year, month=date
     fat_stats = {}
 
     # get FAT stats for member corps
-    query = Q(corporation_id__in=settings.STR_CORP_IDS) | Q(alliance__alliance_id__in=settings.STR_ALLIANCE_IDS)
-    for corp in EveCorporationInfo.objects.filter(query).distinct():
-        fat_stats[corp.corporation_id] = CorpStat(corp.corporation_id, start_of_month, start_of_next_month)
+    for corp_id in settings.STR_CORP_IDS:
+        fat_stats[corp_id] = CorpStat(corp_id, start_of_month, start_of_next_month)
+    for alliance_id in settings.STR_ALLIANCE_IDS:
+        alliance_corps = EveCorporationInfo.objects.filter(alliance__alliance_id=alliance_id)
+        for corp in alliance_corps:
+            fat_stats[corp.corporation_id] = CorpStat(corp.corporation_id, start_of_month, start_of_next_month)
 
     # get FAT stats for corps not in alliance
     #fats_in_span = Fat.objects.filter(fatlink__fatdatetime__gte=start_of_month).filter(
     #    fatlink__fatdatetime__lt=start_of_next_month).exclude(character__corporation_id__in=fat_stats)
 
-    #for fat in fats_in_span.exclude(character__corporation_id__in=fat_stats):
-    #    if EveCorporationInfo.objects.filter(corporation_id=fat.character.corporation_id).exists():
-    #        fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
-    #                                                           start_of_next_month)
-
-
+    #for fat in fats_in_span:
+    #    if fat.character.corporation_id not in fat_stats:
+    #        try:
+    #            fat_stats[fat.character.corporation_id] = CorpStat(fat.character.corporation_id, start_of_month,
+    #                                                            start_of_next_month)
+    #        except ObjectDoesNotExist:
+    #            continue
+                                                                
     # collect and sort stats
     stat_list = [fat_stats[x] for x in fat_stats]
     stat_list.sort(key=lambda stat: stat.corp.corporation_name)
     stat_list.sort(key=lambda stat: (stat.n_fats, stat.n_fats / stat.corp.member_count), reverse=True)
 
-    context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
-           'previous_month': start_of_previous_month}
     if datetime.datetime.now() > start_of_next_month:
-        context.update({'next_month': start_of_next_month})
+        context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
+                   'previous_month': start_of_previous_month, 'next_month': start_of_next_month}
+    else:
+        context = {'fatStats': stat_list, 'month': start_of_month, 'year': year,
+                   'previous_month': start_of_previous_month}
 
     return render(request, 'fleetactivitytracking/fatlinkstatisticsview.html', context=context)
 
@@ -415,3 +420,11 @@ def modify_fatlink_view(request, hash=""):
     context = {'fatlink': fatlink, 'registered_fats': fat_page}
 
     return render(request, 'fleetactivitytracking/fatlinkmodify.html', context=context)
+
+
+def task(request):
+    allfats = Fat.objects.all()
+    for fat in allfats:
+        character = EveCharacter.objects.get(pk=fat.character_id)
+        fat.character_id = character.character_id
+        fat.save()

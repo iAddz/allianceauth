@@ -48,3 +48,13 @@ def validate_services(self, user):
             svc.validate_user(user)
         except:
             logger.exception('Exception running validate_user for services module %s on user %s' % (svc, user))
+
+
+@app.task(bind=True)
+def update_services(self, user):
+    logger.error('Ensuring user %s has permissions for active services' % user)
+    for svc in ServicesHook.get_services():
+        try:
+            svc.sync_nickname(user)
+        except:
+            logger.exception('Exception running sync_nickname for services module %s on user %s' % (svc, user))

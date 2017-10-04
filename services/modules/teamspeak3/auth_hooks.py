@@ -35,6 +35,11 @@ class Teamspeak3Service(ServicesHook):
         if Teamspeak3Tasks.has_account(user) and not self.service_active_for_user(user):
             self.delete_user(user, notify_user=True)
 
+    def sync_nickname(self, user):
+        logger.error('Syncing %s nickname for user %s' % (self.name, user))
+        if Teamspeak3Tasks.has_account(user) and self.service_active_for_user(user):
+            Teamspeak3Tasks.update_uid(user.pk)
+
     def update_all_groups(self):
         logger.debug('Update all %s groups called' % self.name)
         Teamspeak3Tasks.update_all_groups.delay()
