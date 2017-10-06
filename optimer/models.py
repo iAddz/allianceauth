@@ -22,5 +22,4 @@ class optimer(models.Model):
     rzr_optimer_id = models.IntegerField(default=0)
 
     def __str__(self):
-        output = self.operation_name
-        return output.encode('utf-8')
+        return self.operation_name
