@@ -25,7 +25,7 @@ class Fatlink(models.Model):
 
 @python_2_unicode_compatible
 class Fat(models.Model):
-    character = models.ForeignKey(EveCharacter, on_delete=models.CASCADE)
+    character = models.ForeignKey(EveCharacter, to_field='character_id', db_constraint=False, on_delete=models.DO_NOTHING)
     fatlink = models.ForeignKey(Fatlink)
     system = models.CharField(max_length=30)
     shiptype = models.CharField(max_length=30)
@@ -36,5 +36,9 @@ class Fat(models.Model):
         unique_together = (('character', 'fatlink'),)
 
     def __str__(self):
-        output = "Fat-link for %s" % self.character.character_name
+        try:
+            output = "Fat-link for %s" % self.character.character_name
+        except:
+            output = 'Fat-link for DELETED CHAR. User: %s' % self.user.username
         return output.encode('utf-8')
+
