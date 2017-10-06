@@ -30,7 +30,7 @@ def optimer_view(request):
                     'future_timers': optimer.objects.all().filter(
                         start__gte=timezone.now()),
                     'past_timers': optimer.objects.all().filter(
-                        start__lt=timezone.now()).order_by('-start')}
+                        start__lt=timezone.now()).order_by('-start')[:20]}
 
     return render(request, 'registered/operationmanagement.html', context=render_items)
 
