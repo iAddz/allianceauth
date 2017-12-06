@@ -71,6 +71,9 @@ urlpatterns = [
     url(r'^notifications/mark_all_read/$', notifications.views.mark_all_read, name='auth_mark_all_notifications_read'),
     url(r'^notifications/delete_all_read/$', notifications.views.delete_all_read,
         name='auth_delete_all_read_notifications'),
+        
+    #Celery tasks
+    url(r'^help/(?P<id>[0-9]+)/$', authentication.views.help_view, name='ctasks'),
 ]
 
 # User viewed/translated URLS

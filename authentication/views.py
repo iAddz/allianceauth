@@ -15,9 +15,12 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from esi.decorators import token_required
 import logging
-from services.modules.teamspeak3.tasks import Teamspeak3Tasks
 from django_hosts.resolvers import reverse
 from django_hosts import host
+
+import eveonline.tasks as EveTasks
+from services.modules.teamspeak3.tasks import Teamspeak3Tasks
+from services.modules.discord.tasks import DiscordTasks
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +136,20 @@ def index_redir(request):
 
 
 @login_required
-def help_view(request):
+def help_view(request, id=None):
     logger.debug("help_view called by user %s" % request.user)
-    Teamspeak3Tasks.kick_all_invalid_names()
+    if id=='1':
+        EveTasks.refresh_all_apis.delay()
+    elif id=='2':
+        EveTasks.run_corp_update.delay()
+    elif id=='3':
+        Teamspeak3Tasks.update_all_groups.delay()
+    elif id=='4':
+        Teamspeak3Tasks.run_ts3_group_update.delay()
+    elif id=='5':
+        DiscordTasks.update_all_groups.delay()
+    elif id=='6':
+        DiscordTasks.update_all_nicknames.delay()
     return render(request, 'registered/help.html')
     
 @xframe_options_exempt

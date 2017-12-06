@@ -110,7 +110,7 @@ def api_backoff(func):
                         backoff_timer = datetime.datetime.strptime(existing_backoff, cache_time_format)
                         if backoff_timer > datetime.datetime.utcnow():
                             backoff_seconds = (backoff_timer - datetime.datetime.utcnow()).total_seconds()
-                            logger.debug("Still under backoff for {} seconds, backing off" % backoff_seconds)
+                            logger.debug("Still under backoff for %s seconds, backing off" % backoff_seconds)
                             # Still under backoff
                             raise PerformBackoff(
                                 retry_after=backoff_seconds,
@@ -214,7 +214,7 @@ class DiscordOAuthManager:
     @staticmethod
     def update_nickname(user_id, nickname):
         try:
-            nickname = DiscordOAuthManager._sanitize_name(nickname)
+            #nickname = DiscordOAuthManager._sanitize_name(nickname)
             custom_headers = {'content-type': 'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
             data = {'nick': nickname}
             path = DISCORD_URL + "/guilds/" + str(settings.DISCORD_GUILD_ID) + "/members/" + str(user_id)

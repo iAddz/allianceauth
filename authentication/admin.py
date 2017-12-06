@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+from django.contrib.auth.models import User, Group
 from django.utils.text import slugify
 
 from authentication.models import AuthServicesInfo
@@ -68,10 +69,47 @@ def make_service_hooks_sync_nickname_action(service):
     return sync_nickname
 
 
+class GroupAdmin(BaseGroupAdmin):
+    search_fields = ('name',)
+    ordering = ('name',)
+    filter_horizontal = ('permissions',)
+
+    def formfield_for_manytomany(self, db_field, request=None, **kwargs):
+        if request.user.is_superuser:
+            if db_field.name == 'permissions':
+                qs = kwargs.get('queryset', db_field.remote_field.model.objects)
+                # Avoid a major performance hit resolving permission names which
+                # triggers a content_type load:
+                kwargs['queryset'] = qs.select_related('content_type')
+            return super(GroupAdmin, self).formfield_for_manytomany(
+                db_field, request=request, **kwargs)
+
+
 class UserAdmin(BaseUserAdmin):
     """
     Extending Django's UserAdmin model
     """
+    staff_fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        # No permissions
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+        #('Groups', {'fields': ('groups',)}),
+    )
+
+    def change_view(self, request, *args, **kwargs):
+        # for non-superuser
+        if not request.user.is_superuser:
+            try:
+                self.fieldsets = self.staff_fieldsets
+                response = BaseUserAdmin.change_view(self, request, *args, **kwargs)
+            finally:
+                # Reset fieldsets to its original value
+                self.fieldsets = BaseUserAdmin.fieldsets
+            return response
+        else:
+            return BaseUserAdmin.change_view(self, request, *args, **kwargs)
+
     def get_actions(self, request):
         actions = super(BaseUserAdmin, self).get_actions(request)
 
@@ -95,5 +133,7 @@ class UserAdmin(BaseUserAdmin):
 # Re-register UserAdmin
 try:
     admin.site.unregister(User)
+    admin.site.unregister(Group)
 finally:
     admin.site.register(User, UserAdmin)
+    admin.site.register(Group, GroupAdmin)

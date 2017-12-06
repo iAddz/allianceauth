@@ -295,7 +295,7 @@ def group_request_add(request, group_id):
     if not GroupManager.joinable_group(group):
         logger.warning("User %s attempted to join group id %s but it is not a joinable group" %
                        (request.user, group_id))
-        messages.warning(request, _("You cannot join that group"))
+        messages.warning(request, _("You cannot join that group - https://www.youtube.com/watch?v=RfiQYRn7fBg"))
         return redirect('auth_groups')
     if not request.user.has_perm('groupmanagement.request_groups') and not group.authgroup.public:
         # Does not have the required permission, trying to join a non-public group

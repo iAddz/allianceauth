@@ -364,9 +364,7 @@ class Teamspeak3Manager:
             m = re.search(r'[1]+$', user[2]) #Make sure nickname doesn't have 1's added from dual connect/timeout
             if m is None:
                 if "Addz" not in user[1]:
-                    logger.debug("kick %s" % user[0])
                     for client in clients:
-                        logger.debug("checking id: %s" % client['keys']['client_database_id'])
                         if int(client['keys']['client_database_id']) == int(user[0]):
                             kickmsg = "Invalid nickname. Correct nickname: " + user[1]
                             self.server.send_command('clientkick', {'clid': client['keys']['clid'], 'reasonid': 5,
